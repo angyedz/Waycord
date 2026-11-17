@@ -64,7 +64,7 @@ func (a *App) clickLabel(gtx layout.Context, b *widget.Clickable, title string, 
 		fg = a.palette.Text
 	}
 	return b.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return rounded(gtx, bg, 10, inset(12, a.text(title, 14, fg)))
+		return rounded(gtx, bg, 6, padding(layout.Inset{Left: 10, Right: 10, Top: 8, Bottom: 8}, a.text(title, 14, fg)))
 	})
 }
 func (a *App) pill(gtx layout.Context, b *widget.Clickable, title string, active bool) layout.Dimensions {

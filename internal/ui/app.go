@@ -29,7 +29,7 @@ type App struct {
 }
 
 func New() *App {
-	a := &App{palette: theme.Dark, activeChannel: 1, messageList: layout.List{Axis: layout.Vertical, ScrollToEnd: true}}
+	a := &App{palette: theme.Dark, activeChannel: 1, messageList: layout.List{Axis: layout.Vertical}}
 	a.theme = material.NewTheme()
 	a.theme.Palette = material.Palette{Bg: a.palette.Canvas, Fg: a.palette.Text, ContrastBg: a.palette.Accent, ContrastFg: a.palette.Rail}
 	a.composer.SingleLine = true
@@ -66,6 +66,15 @@ func (a *App) process(gtx layout.Context) {
 	if a.sendButton.Clicked(gtx) && !a.updatesView {
 		a.sendPreview()
 	}
+	for {
+		event, ok := a.composer.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, ok := event.(widget.SubmitEvent); ok && !a.updatesView {
+			a.sendPreview()
+		}
+	}
 }
 func (a *App) sendPreview() {
 	body := strings.TrimSpace(a.composer.Text())
@@ -81,8 +90,8 @@ func (a *App) Layout(gtx layout.Context) layout.Dimensions {
 	a.process(gtx)
 	return rounded(gtx, a.palette.Canvas, 0, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-			layout.Rigid(fixedWidth(66, a.serverRail)),
-			layout.Rigid(fixedWidth(230, a.channelRail)),
+			layout.Rigid(fixedWidth(64, a.serverRail)),
+			layout.Rigid(fixedWidth(216, a.channelRail)),
 			layout.Flexed(1, a.workspace),
 		)
 	})
@@ -93,7 +102,7 @@ func (a *App) serverRail(gtx layout.Context) layout.Dimensions {
 		children := []layout.FlexChild{
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return rounded(gtx, a.palette.Accent, 15, inset(10, a.text("W", 21, a.palette.Rail)))
-			}), vspace(22),
+			}), vspace(18),
 		}
 		for i, name := range mock.Servers {
 			i, name := i, name
@@ -119,15 +128,15 @@ func (a *App) channelRail(gtx layout.Context) layout.Dimensions {
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return fixedHeight(70, inset(20, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-						layout.Rigid(a.text("WAYCORD", 15, a.palette.Text)),
-						vspace(4), layout.Rigid(a.text("PRIVATE PREVIEW", 10, a.palette.Subtle)),
+						layout.Rigid(a.text("Waycord", 16, a.palette.Text)),
+						vspace(3), layout.Rigid(a.text("YOUR WORKSPACE", 10, a.palette.Subtle)),
 					)
 				}))(gtx)
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return layout.Inset{Left: 10, Right: 10, Top: 22}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					kids := []layout.FlexChild{
-						layout.Rigid(inset(9, a.text("TEXT CHANNELS", 11, a.palette.Subtle))), vspace(12),
+						layout.Rigid(inset(9, a.text("CHANNELS", 11, a.palette.Subtle))), vspace(5),
 					}
 					for i, n := range mock.Channels {
 						i, n := i, n

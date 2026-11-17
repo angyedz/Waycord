@@ -2,30 +2,30 @@
 
 ## Intent
 
-Dense without feeling cramped. Crisp typography, muted slate panels, one restrained violet accent, comfortable 12–16dp corners, no unnecessary gradients. Fast response and an interface that still looks intentional when its content is empty.
+Dense without feeling cramped. Crisp typography, neutral charcoal panels and a restrained sage accent. Message text sits directly on the canvas; rounded surfaces are reserved for controls and inputs. Fast response and an interface that still looks intentional when its content is empty.
 
 ## Tokens
 
 | Role | Hex |
 | --- | --- |
-| Canvas | `#10141D` |
-| Server rail | `#0B0E15` |
-| Channel rail | `#141925` |
-| Surface | `#1B2230` |
-| Raised surface | `#252D3E` |
-| Accent | `#9585FA` |
-| Accent surface | `#342E58` |
-| Primary text | `#F0F3FA` |
-| Muted text | `#A0AABD` |
-| Subtle text | `#697487` |
-| Positive | `#60D5A4` |
+| Canvas | `#17191F` |
+| Server rail | `#101217` |
+| Channel rail | `#1C1F26` |
+| Surface | `#242830` |
+| Raised surface | `#303540` |
+| Accent | `#91B9AD` |
+| Accent surface | `#33443F` |
+| Primary text | `#ECEEF2` |
+| Muted text | `#B4BAC5` |
+| Subtle text | `#89919F` |
+| Positive | `#8CCAB0` |
 
 Single source of truth: `internal/ui/theme/palette.go`.
 
 ## Desktop layout (first iteration)
 
-- **Server rail:** 66dp, full window height, strong contrast with the rest.
-- **Channel rail:** 230dp, grouped text/voice channels; bottom connection-state section.
+- **Server rail:** 64dp, full window height, strong contrast with the rest.
+- **Channel rail:** 216dp, grouped text/voice channels; bottom connection-state section.
 - **Workspace:** flexible width, 70dp header, virtualized message list and message composer.
 - **Updates screen:** separate workspace route with channel picker and explicit explanation of signed OTA steps.
 - **Minimum window:** 800 × 540dp; responsive reflow below this size is future work.

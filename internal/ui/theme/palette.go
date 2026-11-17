@@ -15,9 +15,9 @@ func Hex(v uint32) color.NRGBA {
 }
 
 var Dark = Palette{
-	Canvas: Hex(0x10141D), Rail: Hex(0x0B0E15), Sidebar: Hex(0x141925),
-	Surface: Hex(0x1B2230), Surface2: Hex(0x252D3E),
-	Text: Hex(0xF0F3FA), Muted: Hex(0xA0AABD), Subtle: Hex(0x697487),
-	Accent: Hex(0x9585FA), AccentDim: Hex(0x342E58), Border: Hex(0x2B3444),
-	Positive: Hex(0x60D5A4), Warning: Hex(0xE9BD79),
+	Canvas: Hex(0x17191F), Rail: Hex(0x101217), Sidebar: Hex(0x1C1F26),
+	Surface: Hex(0x242830), Surface2: Hex(0x303540),
+	Text: Hex(0xECEEF2), Muted: Hex(0xB4BAC5), Subtle: Hex(0x89919F),
+	Accent: Hex(0x91B9AD), AccentDim: Hex(0x33443F), Border: Hex(0x353A44),
+	Positive: Hex(0x8CCAB0), Warning: Hex(0xE9BD79),
 }
