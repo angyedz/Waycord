@@ -312,7 +312,10 @@ func (a *App) header(gtx layout.Context) layout.Dimensions {
 					if a.updatesView {
 						title = "Settings / Updates"
 					}
-					return layout.W.Layout(gtx, a.text(title, 19, a.palette.Text))
+					offset := op.Offset(image.Pt(0, gtx.Dp(4))).Push(gtx.Ops)
+					dimensions := layout.W.Layout(gtx, a.text(title, 19, a.palette.Text))
+					offset.Pop()
+					return dimensions
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					if a.direct && !a.updatesView && wide {
