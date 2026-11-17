@@ -30,3 +30,25 @@ func TestMemberEntriesOmitEmptyGroups(t *testing.T) {
 		t.Fatalf("empty server produced member groups: %+v", entries)
 	}
 }
+
+func TestMemberEntriesShowActiveActivitiesBeforeRoleGroups(t *testing.T) {
+	members := []mock.Member{
+		{Name: "mira", Role: "Members", Status: "Online", Activity: "Listening to music"},
+		{Name: "k66", Role: "Members", Status: "Idle", Activity: "Playing a game"},
+		{Name: "offline", Role: "Members", Status: "Offline", Activity: "Old activity"},
+		{Name: "plain", Role: "Members", Status: "Online"},
+	}
+	entries := memberEntries(members)
+	if len(entries) != 8 {
+		t.Fatalf("expected one activity header, two activity cards, one role header, and four members; got %+v", entries)
+	}
+	if !entries[0].activity || entries[0].member != nil || entries[0].count != 2 {
+		t.Fatalf("activity header should count only active members with an activity: %+v", entries[0])
+	}
+	if entries[1].member.Name != "mira" || !entries[1].activity || entries[2].member.Name != "k66" || !entries[2].activity {
+		t.Fatalf("activity cards were missing or out of order: %+v", entries[:3])
+	}
+	if entries[3].role != "Members" || entries[3].activity || entries[4].member.Name != "mira" || entries[7].member.Name != "plain" {
+		t.Fatalf("role members should follow the activity section: %+v", entries[3:])
+	}
+}
