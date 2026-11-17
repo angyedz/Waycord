@@ -9,6 +9,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/widget"
+	"gioui.org/x/richtext"
 )
 
 type reactionWidget struct {
@@ -21,6 +22,7 @@ type reactionWidget struct {
 	choices    [len(emojiOptions)]widget.Clickable
 	existing   [len(emojiOptions)]widget.Clickable
 	picker     panelTransition
+	links      richtext.InteractiveText
 }
 
 func (a *App) reactionWidget(index int) *reactionWidget {

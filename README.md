@@ -4,9 +4,12 @@
 
 > **Development status:** UI is currently an **offline design preview** with local fixture messages. No Discord login, messaging, calls, or screen sharing are implemented. The OTA subsystem has a standalone CLI, but automatic update checking is not yet wired into the UI. Waycord is not affiliated with Discord Inc. and unofficial user clients may violate Discord's terms and carry account restrictions.
 
+The current Markdown renderer does not yet support Discord spoilers or embeds.
+
 ## Current scope
 
 - Native, GPU-rendered dark UI with server rail, channel list, local chat preview, and an update settings screen.
+- Rich, selectable message text with bold, italic, code, headings, quotes, lists, links, underline and strikethrough formatting. Links open only after a click and use the OS handler.
 - Independent updater with Ed25519 signed manifests, SHA-256 verification, versioned binary slots, and startup-health rollback.
 - Separate Go packages for UI, theme tokens, test fixtures, update engine, signing utility, and launcher.
 - CI builds/tests for Linux and Windows.

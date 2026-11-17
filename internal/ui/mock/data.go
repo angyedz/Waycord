@@ -16,7 +16,7 @@ var Messages = []Message{
 	{Direct: true, Author: "mira", Time: "10:24", Body: "Hey! Are we still meeting later?"},
 	{Direct: true, Author: "You", Time: "10:26", Body: "Yes, see you there!", Self: true},
 	{Channel: 1, Author: "mira", Time: "10:24", Body: "Hey everyone! How is your day going?"},
-	{Channel: 1, Author: "angyedz", Time: "10:26", Body: "Pretty good! What are you working on today?", Self: true},
+	{Channel: 1, Author: "angyedz", Time: "10:26", Body: "Pretty good! I have **bold**, *italic*, and `code` styles.", Self: true},
 	{Channel: 1, Author: "k66", Time: "10:27", Body: "I have been putting together a few ideas."},
 	{Channel: 1, Author: "mira", Time: "10:31", Body: "Nice, share them when you get a chance!"},
 	{Channel: 1, Author: "angyedz", Time: "10:35", Body: "Will do! 😊", Self: true},

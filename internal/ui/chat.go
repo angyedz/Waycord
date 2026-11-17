@@ -119,10 +119,7 @@ func (a *App) messageContent(gtx layout.Context, index int, m mock.Message) layo
 				}),
 				vspace(4),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					label := material.Label(a.theme, 15, m.Body)
-					label.Color = a.palette.Muted
-					label.State = &a.reactionWidget(index).body
-					return label.Layout(gtx)
+					return a.messageBody(gtx, index, m.Body)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.reactionRow(gtx, index) }),
 			)

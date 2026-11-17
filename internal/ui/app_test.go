@@ -8,6 +8,8 @@ import (
 	"gioui.org/op"
 	"gioui.org/unit"
 	"gioui.org/widget"
+
+	"github.com/angyedz/Waycord/internal/ui/mock"
 )
 
 func TestPreviewMessageRemainsInItsConversation(t *testing.T) {
@@ -90,5 +92,26 @@ func TestMessageSelectionSurvivesRelayout(t *testing.T) {
 	app.messageContent(gtx, index, app.messages[index])
 	if body.SelectedText() != selected {
 		t.Fatal("selection was lost on relayout")
+	}
+}
+
+func TestFormattedMessageRemainsSelectableWithoutMarkdownMarkers(t *testing.T) {
+	app := New()
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}, Constraints: layout.Constraints{Max: image.Pt(700, 400)}}
+	message := mock.Message{Body: "**bold** and *italic*"}
+	app.messageContent(gtx, 0, message)
+	body := &app.reactionWidget(0).body
+	if got := body.Text(); got != "bold and italic" {
+		t.Fatalf("selectable text contains markdown syntax: %q", got)
+	}
+	body.SetCaret(0, 4)
+	if got := body.SelectedText(); got != "bold" {
+		t.Fatalf("unexpected formatted selection: %q", got)
+	}
+	ops.Reset()
+	app.messageContent(gtx, 0, message)
+	if got := body.SelectedText(); got != "bold" {
+		t.Fatalf("formatted selection was lost on relayout: %q", got)
 	}
 }

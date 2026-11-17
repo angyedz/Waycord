@@ -16,6 +16,7 @@ import (
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
 	"github.com/angyedz/Waycord/internal/core/reactions"
+	uiMarkdown "github.com/angyedz/Waycord/internal/ui/markdown"
 	"github.com/angyedz/Waycord/internal/ui/mock"
 	"github.com/angyedz/Waycord/internal/ui/theme"
 )
@@ -24,6 +25,7 @@ import (
 type App struct {
 	palette                                    theme.Palette
 	theme                                      *material.Theme
+	messageMarkdown                            *uiMarkdown.Cache
 	channelButtons                             [4]widget.Clickable
 	chatButton, updatesButton, sendButton      widget.Clickable
 	directButton, serverButton, contactButton  widget.Clickable
@@ -72,6 +74,7 @@ func New() *App {
 	a.settingsIcon, _ = widget.NewIcon(icons.ActionSettings)
 	a.emojiIcon, _ = widget.NewIcon(icons.SocialSentimentSatisfied)
 	a.theme.Palette = material.Palette{Bg: a.palette.Canvas, Fg: a.palette.Text, ContrastBg: a.palette.Accent, ContrastFg: a.palette.Rail}
+	a.messageMarkdown = uiMarkdown.NewCache(uiMarkdown.New(theme.TextFamilies, a.palette.Muted, a.palette.Accent), 64)
 	a.composer.SingleLine = true
 	a.composer.Submit = true
 	a.composer.MaxLen = 2000
