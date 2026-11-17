@@ -4,6 +4,7 @@ import (
 	"image"
 	"os"
 	"testing"
+	"time"
 
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -33,6 +34,30 @@ func TestPreviewMessageRemainsInItsConversation(t *testing.T) {
 	message = app.messages[len(app.messages)-1]
 	if message.Direct || message.Channel != 2 {
 		t.Fatalf("channel message lost its context: %+v", message)
+	}
+}
+
+func TestMessagesGroupOnlySameAuthorConversationAndMinute(t *testing.T) {
+	stamp := time.Date(2026, 11, 17, 10, 24, 5, 0, time.UTC)
+	a := mock.Message{Author: "mira", Channel: 1, SentAt: stamp}
+	b := a
+	b.SentAt = stamp.Add(40 * time.Second)
+	if !messagesGroup(a, b) {
+		t.Fatal("messages from the same minute should group")
+	}
+	for name, change := range map[string]func(*mock.Message){
+		"author":       func(m *mock.Message) { m.Author = "other" },
+		"channel":      func(m *mock.Message) { m.Channel++ },
+		"direct":       func(m *mock.Message) { m.Direct = true },
+		"minute":       func(m *mock.Message) { m.SentAt = stamp.Add(time.Minute) },
+		"day":          func(m *mock.Message) { m.SentAt = stamp.Add(24 * time.Hour) },
+		"unknown time": func(m *mock.Message) { m.SentAt = time.Time{} },
+	} {
+		candidate := b
+		change(&candidate)
+		if messagesGroup(a, candidate) {
+			t.Errorf("messages grouped across %s", name)
+		}
 	}
 }
 

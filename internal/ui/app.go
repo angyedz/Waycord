@@ -34,12 +34,19 @@ type App struct {
 	updateCheckButton, updateAutoButton       widget.Clickable
 	updateOpenButton                          widget.Clickable
 	updateChannelButtons                      [3]widget.Clickable
+	settingsSections                          [5]widget.Clickable
+	compactButton                             widget.Clickable
+	settingsSection                           int
+	compactMessages                           bool
 	directButton, serverButton, contactButton widget.Clickable
 	sidebarButton, profileButton              widget.Clickable
+	membersButton                             widget.Clickable
 	sidebar                                   sidebarState
 	menuIcon                                  *widget.Icon
 	sendIcon                                  *widget.Icon
 	settingsIcon                              *widget.Icon
+	copyIcon                                  *widget.Icon
+	membersIcon                               *widget.Icon
 	interactions                              map[*widget.Clickable]*interactionState
 	emojiIcon                                 *widget.Icon
 	emojiButton                               widget.Clickable
@@ -66,6 +73,8 @@ type App struct {
 	direct                                     bool
 	profileOpen                                bool
 	profileSlide                               panelTransition
+	membersOpen                                bool
+	membersSlide                               panelTransition
 	contentKey                                 string
 	contentSlide                               panelTransition
 	messageList                                layout.List
@@ -92,6 +101,8 @@ func New() *App {
 	a.menuIcon, _ = widget.NewIcon(icons.NavigationMenu)
 	a.sendIcon, _ = widget.NewIcon(icons.ContentSend)
 	a.settingsIcon, _ = widget.NewIcon(icons.ActionSettings)
+	a.copyIcon, _ = widget.NewIcon(icons.ContentContentCopy)
+	a.membersIcon, _ = widget.NewIcon(icons.SocialPeople)
 	a.emojiIcon, _ = widget.NewIcon(icons.SocialSentimentSatisfied)
 	a.theme.Palette = material.Palette{Bg: a.palette.Canvas, Fg: a.palette.Text, ContrastBg: a.palette.Accent, ContrastFg: a.palette.Rail}
 	a.messageMarkdown = uiMarkdown.NewCache(uiMarkdown.New(theme.TextFamilies, a.palette.Muted, a.palette.Accent), 64)
@@ -121,6 +132,9 @@ func (a *App) process(gtx layout.Context) {
 	}
 	if a.profileButton.Clicked(gtx) {
 		a.profileOpen = !a.profileOpen
+	}
+	if a.membersButton.Clicked(gtx) {
+		a.membersOpen = !a.membersOpen
 	}
 	a.sidebar.update(gtx)
 	if a.directButton.Clicked(gtx) || a.contactButton.Clicked(gtx) {
@@ -154,6 +168,14 @@ func (a *App) process(gtx layout.Context) {
 	if a.updatesButton.Clicked(gtx) {
 		a.contextTarget = -1
 		a.updatesView = true
+	}
+	for i := range a.settingsSections {
+		if a.settingsSections[i].Clicked(gtx) {
+			a.settingsSection = i
+		}
+	}
+	if a.compactButton.Clicked(gtx) {
+		a.compactMessages = !a.compactMessages
 	}
 	if a.updateCheckButton.Clicked(gtx) {
 		a.checkForUpdates()
@@ -189,7 +211,8 @@ func (a *App) sendPreview() {
 	if body == "" {
 		return
 	}
-	a.messages = append(a.messages, mock.Message{Channel: a.activeChannel, Direct: a.direct, Author: "You", Time: "now", Body: body, Self: true})
+	now := time.Now()
+	a.messages = append(a.messages, mock.Message{Channel: a.activeChannel, Direct: a.direct, Author: "You", Time: now.Format("15:04"), SentAt: now, Body: body, Self: true})
 	a.composer.SetText("")
 	a.messageList.ScrollToEnd = true
 }
@@ -207,7 +230,13 @@ func (a *App) Layout(gtx layout.Context) layout.Dimensions {
 								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 									return layout.Flex{}.Layout(gtx,
 										layout.Rigid(fixedWidth(52, a.serverRail)),
-										layout.Rigid(fixedWidth(width, func(gtx layout.Context) layout.Dimensions {
+										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+											if width < 1 {
+												return layout.Dimensions{}
+											}
+											return a.navigationDivider(gtx)
+										}),
+										layout.Rigid(fixedWidth(max(0, width-1), func(gtx layout.Context) layout.Dimensions {
 											if width < 120 {
 												return layout.Dimensions{Size: gtx.Constraints.Min}
 											}
@@ -320,12 +349,19 @@ func (a *App) animatedWorkspaceContent(gtx layout.Context) layout.Dimensions {
 	offset := op.Offset(image.Pt(shift, 0)).Push(gtx.Ops)
 	var child layout.Dimensions
 	if a.updatesView {
-		child = a.updates(gtx)
+		child = a.settings(gtx)
 	} else {
 		showProfile := a.direct && a.profileOpen && gtx.Constraints.Max.X >= gtx.Dp(730)
 		profileProgress := a.profileSlide.layoutProgress(gtx, showProfile)
 		if profileProgress > 0 && a.direct {
 			child = layout.Flex{}.Layout(gtx, layout.Flexed(1, a.chat), layout.Rigid(a.slidingProfile(profileProgress)))
+		} else if !a.direct {
+			membersProgress := a.membersSlide.layoutProgress(gtx, a.membersOpen && gtx.Constraints.Max.X >= gtx.Dp(730))
+			if membersProgress > 0 {
+				child = layout.Flex{}.Layout(gtx, layout.Flexed(1, a.chat), layout.Rigid(a.slidingMembers(membersProgress)))
+			} else {
+				child = a.chat(gtx)
+			}
 		} else {
 			child = a.chat(gtx)
 		}
@@ -350,7 +386,7 @@ func (a *App) header(gtx layout.Context) layout.Dimensions {
 						title = "@ mira"
 					}
 					if a.updatesView {
-						title = "Settings / Updates"
+						title = "Settings / " + settingsNames[a.settingsSection]
 					}
 					offset := op.Offset(image.Pt(0, gtx.Dp(4))).Push(gtx.Ops)
 					dimensions := layout.W.Layout(gtx, a.text(title, 19, a.palette.Text))
@@ -360,6 +396,9 @@ func (a *App) header(gtx layout.Context) layout.Dimensions {
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					if a.direct && !a.updatesView && wide {
 						return a.pill(gtx, &a.profileButton, "Profile", a.profileOpen)
+					}
+					if !a.direct && !a.updatesView && wide {
+						return a.iconControl(gtx, &a.membersButton, a.membersIcon, 36, 20, "Toggle members")
 					}
 					if !a.updatesView {
 						return layout.Dimensions{}

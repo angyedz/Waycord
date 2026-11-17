@@ -2,8 +2,11 @@ package ui
 
 import (
 	"image"
+	"io"
+	"strings"
 
 	"gioui.org/gesture"
+	"gioui.org/io/clipboard"
 	"gioui.org/io/event"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
@@ -14,6 +17,7 @@ import (
 
 type reactionWidget struct {
 	add        widget.Clickable
+	copy       widget.Clickable
 	body       widget.Selectable
 	contextTag int
 	hover      gesture.Hover
@@ -37,6 +41,9 @@ func (a *App) reactionWidget(index int) *reactionWidget {
 func (a *App) processReactions(gtx layout.Context) {
 	for index, w := range a.reactionWidgets {
 		w.hovered = w.hover.Update(gtx.Source)
+		if w.copy.Clicked(gtx) && index < len(a.messages) {
+			gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(a.messages[index].Body))})
+		}
 		if w.add.Clicked(gtx) {
 			if a.reactionTarget == index {
 				a.reactionTarget = -1
@@ -84,6 +91,9 @@ func (a *App) reactionToolbar(gtx layout.Context, index int) layout.Dimensions {
 			}))
 		}
 		buttons = append(buttons, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.reactionAdd(gtx, index) }))
+		buttons = append(buttons, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return a.iconControl(gtx, &w.copy, a.copyIcon, 28, 16, "Copy message")
+		}))
 		return layout.Flex{Alignment: layout.Middle}.Layout(gtx, buttons...)
 	}))
 }

@@ -83,3 +83,11 @@ func (s *sidebarState) handle(gtx layout.Context, border color.NRGBA) layout.Dim
 	area.Pop()
 	return layout.Dimensions{Size: size}
 }
+
+func (a *App) navigationDivider(gtx layout.Context) layout.Dimensions {
+	width := max(1, gtx.Dp(1))
+	height := gtx.Constraints.Max.Y
+	inset := min(gtx.Dp(12), height/2)
+	paint.FillShape(gtx.Ops, a.palette.Border, clip.Rect{Min: image.Pt(0, inset), Max: image.Pt(width, height-inset)}.Op())
+	return layout.Dimensions{Size: image.Pt(width, height)}
+}

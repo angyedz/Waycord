@@ -2,6 +2,8 @@
 // preview. It never authenticates to or sends requests to Discord.
 package mock
 
+import "time"
+
 type Message struct {
 	Channel int
 	Author  string
@@ -9,13 +11,15 @@ type Message struct {
 	Body    string
 	Self    bool
 	Direct  bool
+	SentAt  time.Time
 }
 
 var Channels = []string{"general", "dev-chat", "showcase", "ideas"}
 var Messages = []Message{
 	{Direct: true, Author: "mira", Time: "10:24", Body: "Hey! Are we still meeting later?"},
 	{Direct: true, Author: "You", Time: "10:26", Body: "Yes, see you there!", Self: true},
-	{Channel: 1, Author: "mira", Time: "10:24", Body: "Hey everyone! How is your day going?"},
+	{Channel: 1, Author: "mira", Time: "10:24", SentAt: time.Date(2026, 11, 17, 10, 24, 8, 0, time.UTC), Body: "Hey everyone! How is your day going?"},
+	{Channel: 1, Author: "mira", Time: "10:24", SentAt: time.Date(2026, 11, 17, 10, 24, 22, 0, time.UTC), Body: "I've got a few ideas to share."},
 	{Channel: 1, Author: "angyedz", Time: "10:26", Body: "Pretty good! I have **bold**, *italic*, and `code` styles.", Self: true},
 	{Channel: 1, Author: "k66", Time: "10:27", Body: "I have been putting together a few ideas."},
 	{Channel: 1, Author: "mira", Time: "10:31", Body: "Nice, share them when you get a chance!"},

@@ -2,9 +2,11 @@ package ui
 
 import (
 	"image"
+	"time"
 
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/unit"
 	"gioui.org/widget/material"
 
 	"github.com/angyedz/Waycord/internal/ui/mock"
@@ -26,7 +28,17 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 			}
 			return layout.Inset{Left: 20, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return a.messageList.Layout(gtx, len(visible), func(gtx layout.Context, i int) layout.Dimensions {
-					return layout.Inset{Bottom: 13}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return a.message(gtx, visible[i], a.messages[visible[i]]) })
+					grouped := i > 0 && messagesGroup(a.messages[visible[i-1]], a.messages[visible[i]])
+					bottom := float32(13)
+					if a.compactMessages {
+						bottom = 7
+					}
+					if i+1 < len(visible) && messagesGroup(a.messages[visible[i]], a.messages[visible[i+1]]) {
+						bottom = 3
+					}
+					return layout.Inset{Bottom: unit.Dp(bottom)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return a.message(gtx, visible[i], a.messages[visible[i]], grouped)
+					})
 				})
 			})
 		}),
@@ -57,11 +69,11 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 	)
 }
 
-func (a *App) message(gtx layout.Context, index int, m mock.Message) layout.Dimensions {
+func (a *App) message(gtx layout.Context, index int, m mock.Message, grouped bool) layout.Dimensions {
 	gtx.Constraints.Min.X = gtx.Constraints.Max.X
 	w := a.reactionWidget(index)
 	dim := layout.Stack{Alignment: layout.NE}.Layout(gtx,
-		layout.Stacked(func(gtx layout.Context) layout.Dimensions { return a.messageContent(gtx, index, m) }),
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions { return a.messageContentGrouped(gtx, index, m, grouped) }),
 		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
 			if !w.hovered && a.reactionTarget != index {
 				return layout.Dimensions{Size: gtx.Constraints.Min}
@@ -96,8 +108,22 @@ func (a *App) message(gtx layout.Context, index int, m mock.Message) layout.Dime
 }
 
 func (a *App) messageContent(gtx layout.Context, index int, m mock.Message) layout.Dimensions {
+	return a.messageContentGrouped(gtx, index, m, false)
+}
+
+func messagesGroup(previous, current mock.Message) bool {
+	if previous.Author != current.Author || previous.Direct != current.Direct || previous.Channel != current.Channel || previous.SentAt.IsZero() || current.SentAt.IsZero() || current.SentAt.Before(previous.SentAt) {
+		return false
+	}
+	return previous.SentAt.Truncate(time.Minute).Equal(current.SentAt.Truncate(time.Minute))
+}
+
+func (a *App) messageContentGrouped(gtx layout.Context, index int, m mock.Message, grouped bool) layout.Dimensions {
 	return layout.Flex{Alignment: layout.Start}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if grouped {
+				return layout.Dimensions{Size: image.Pt(gtx.Dp(38), 0)}
+			}
 			avatar := a.palette.Surface2
 			if m.Self {
 				avatar = a.palette.AccentDim
@@ -112,12 +138,20 @@ func (a *App) messageContent(gtx layout.Context, index int, m mock.Message) layo
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if grouped {
+						return layout.Dimensions{}
+					}
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(a.text(m.Author, 14, a.palette.Text)), hspace(10),
 						layout.Rigid(a.text(m.Time, 11, a.palette.Subtle)),
 					)
 				}),
-				vspace(4),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if grouped {
+						return layout.Dimensions{}
+					}
+					return layout.Spacer{Height: 4}.Layout(gtx)
+				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return a.messageBody(gtx, index, m.Body)
 				}),
