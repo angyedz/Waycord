@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"image"
+
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/widget/material"
 
 	"github.com/angyedz/Waycord/internal/ui/mock"
@@ -72,6 +75,18 @@ func (a *App) message(gtx layout.Context, index int, m mock.Message) layout.Dime
 		}),
 	)
 	a.messageHover(gtx, index, dim.Size)
+	if a.contextTarget == index {
+		position := a.contextPosition
+		position.X = max(0, min(position.X, dim.Size.X-gtx.Dp(190)))
+		position.Y = max(0, position.Y)
+		macro := op.Record(gtx.Ops)
+		offset := op.Offset(image.Pt(position.X, position.Y)).Push(gtx.Ops)
+		menuContext := gtx
+		menuContext.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(190), gtx.Dp(100))}
+		a.contextMenu(menuContext)
+		offset.Pop()
+		op.Defer(gtx.Ops, macro.Stop())
+	}
 	return dim
 }
 
@@ -98,7 +113,12 @@ func (a *App) messageContent(gtx layout.Context, index int, m mock.Message) layo
 					)
 				}),
 				vspace(4),
-				layout.Rigid(a.text(m.Body, 14, a.palette.Muted)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					label := material.Label(a.theme, 15, m.Body)
+					label.Color = a.palette.Muted
+					label.State = &a.reactionWidget(index).body
+					return label.Layout(gtx)
+				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.reactionRow(gtx, index) }),
 			)
 		}),

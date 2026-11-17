@@ -7,11 +7,7 @@ import (
 var emojiOptions = [...]string{"😀", "😂", "😊", "😍", "👍", "❤️", "🎉", "🔥"}
 
 func (a *App) emojiControl(gtx layout.Context) layout.Dimensions {
-	return a.emojiButton.Layout(gtx, fixedWidth(34, fixedHeight(34, func(gtx layout.Context) layout.Dimensions {
-		return layout.Center.Layout(gtx, fixedWidth(20, func(gtx layout.Context) layout.Dimensions {
-			return a.emojiIcon.Layout(gtx, a.palette.Muted)
-		}))
-	})))
+	return a.iconControl(gtx, &a.emojiButton, a.emojiIcon, 34, 20, "Emoji")
 }
 
 func (a *App) emojiPicker(gtx layout.Context) layout.Dimensions {
@@ -21,9 +17,7 @@ func (a *App) emojiPicker(gtx layout.Context) layout.Dimensions {
 			for i, value := range emojiOptions {
 				i, value := i, value
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return a.emojiChoices[i].Layout(gtx, fixedWidth(38, fixedHeight(38, func(gtx layout.Context) layout.Dimensions {
-						return layout.Center.Layout(gtx, a.text(value, 21, a.palette.Text))
-					})))
+					return a.emojiChoice(gtx, &a.emojiChoices[i], value, 38, 21)
 				}))
 			}
 			return layout.Flex{Alignment: layout.Middle}.Layout(gtx, children...)

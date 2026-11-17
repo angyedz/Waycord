@@ -4,20 +4,22 @@ import (
 	"image"
 
 	"gioui.org/gesture"
+	"gioui.org/io/event"
 	"gioui.org/io/pointer"
-	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/widget"
 )
 
 type reactionWidget struct {
-	add      widget.Clickable
-	hover    gesture.Hover
-	hovered  bool
-	quick    [3]widget.Clickable
-	choices  [len(emojiOptions)]widget.Clickable
-	existing [len(emojiOptions)]widget.Clickable
+	add        widget.Clickable
+	body       widget.Selectable
+	contextTag int
+	hover      gesture.Hover
+	hovered    bool
+	quick      [3]widget.Clickable
+	choices    [len(emojiOptions)]widget.Clickable
+	existing   [len(emojiOptions)]widget.Clickable
 }
 
 func (a *App) reactionWidget(index int) *reactionWidget {
@@ -63,6 +65,7 @@ func (a *App) messageHover(gtx layout.Context, index int, size image.Point) {
 	area := clip.Rect{Max: size}.Push(gtx.Ops)
 	pass := (pointer.PassOp{}).Push(gtx.Ops)
 	a.reactionWidget(index).hover.Add(gtx.Ops)
+	event.Op(gtx.Ops, &a.reactionWidget(index).contextTag)
 	pass.Pop()
 	area.Pop()
 }
@@ -74,10 +77,7 @@ func (a *App) reactionToolbar(gtx layout.Context, index int) layout.Dimensions {
 		for i, option := range quickReactions {
 			i, value := i, emojiOptions[option]
 			buttons = append(buttons, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return w.quick[i].Layout(gtx, fixedWidth(29, fixedHeight(29, func(gtx layout.Context) layout.Dimensions {
-					semantic.LabelOp("React " + value).Add(gtx.Ops)
-					return layout.Center.Layout(gtx, a.text(value, 18, a.palette.Text))
-				})))
+				return a.emojiChoice(gtx, &w.quick[i], value, 29, 18)
 			}))
 		}
 		buttons = append(buttons, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.reactionAdd(gtx, index) }))
@@ -122,9 +122,7 @@ func (a *App) reactionRow(gtx layout.Context, index int) layout.Dimensions {
 						for i, value := range emojiOptions {
 							i, value := i, value
 							choices = append(choices, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return w.choices[i].Layout(gtx, fixedWidth(34, fixedHeight(34, func(gtx layout.Context) layout.Dimensions {
-									return layout.Center.Layout(gtx, a.text(value, 19, a.palette.Text))
-								})))
+								return a.emojiChoice(gtx, &w.choices[i], value, 34, 19)
 							}))
 						}
 						return layout.Flex{Alignment: layout.Middle}.Layout(gtx, choices...)
@@ -137,8 +135,9 @@ func (a *App) reactionRow(gtx layout.Context, index int) layout.Dimensions {
 
 func (a *App) reactionChip(gtx layout.Context, button *widget.Clickable, value string) layout.Dimensions {
 	gtx.Constraints.Min = image.Point{}
+	background := a.interactionColor(gtx, button, a.palette.AccentDim, a.palette.Surface2)
 	return button.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return rounded(gtx, a.palette.AccentDim, 12, padding(layout.Inset{Left: 7, Right: 8, Top: 3, Bottom: 3}, func(gtx layout.Context) layout.Dimensions {
+		return rounded(gtx, background, 12, padding(layout.Inset{Left: 7, Right: 8, Top: 3, Bottom: 3}, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(a.text(value, 16, a.palette.Text)),
 				hspace(4),
@@ -150,8 +149,5 @@ func (a *App) reactionChip(gtx layout.Context, button *widget.Clickable, value s
 
 func (a *App) reactionAdd(gtx layout.Context, index int) layout.Dimensions {
 	w := a.reactionWidget(index)
-	return w.add.Layout(gtx, fixedWidth(24, fixedHeight(24, func(gtx layout.Context) layout.Dimensions {
-		semantic.LabelOp("Add reaction").Add(gtx.Ops)
-		return layout.Center.Layout(gtx, fixedWidth(16, func(gtx layout.Context) layout.Dimensions { return a.emojiIcon.Layout(gtx, a.palette.Subtle) }))
-	})))
+	return a.iconControl(gtx, &w.add, a.emojiIcon, 24, 16, "Add reaction")
 }

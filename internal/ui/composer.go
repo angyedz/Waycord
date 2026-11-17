@@ -11,8 +11,10 @@ import (
 // sendControl eases its hover state without scheduling frames while idle.
 func (a *App) sendControl(gtx layout.Context) layout.Dimensions {
 	target := float32(0)
-	if a.sendButton.Hovered() || a.sendButton.Pressed() {
+	if a.sendButton.Pressed() {
 		target = 1
+	} else if a.sendButton.Hovered() {
+		target = 0.6
 	}
 	if a.sendHoverTime.IsZero() || gtx.Now.Before(a.sendHoverTime) {
 		a.sendHoverTime = gtx.Now

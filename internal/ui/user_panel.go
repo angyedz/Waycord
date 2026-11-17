@@ -1,0 +1,31 @@
+package ui
+
+import "gioui.org/layout"
+
+func (a *App) userPanel(gtx layout.Context, expanded bool) layout.Dimensions {
+	if !expanded {
+		return layout.Inset{Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return layout.Center.Layout(gtx, a.settingsControl) })
+	}
+	return layout.Inset{Left: 8, Right: 8, Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return rounded(gtx, a.palette.Surface, 14, padding(layout.Inset{Left: 8, Right: 6, Top: 7, Bottom: 7}, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(fixedWidth(32, fixedHeight(32, func(gtx layout.Context) layout.Dimensions {
+					return rounded(gtx, a.palette.AccentDim, 16, func(gtx layout.Context) layout.Dimensions {
+						return layout.Center.Layout(gtx, a.text("Y", 13, a.palette.Text))
+					})
+				}))),
+				hspace(8),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx, layout.Rigid(a.text("You", 13, a.palette.Text)), layout.Rigid(a.text("Offline", 11, a.palette.Subtle)))
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return a.settingsControl(gtx)
+				}),
+			)
+		}))
+	})
+}
+
+func (a *App) settingsControl(gtx layout.Context) layout.Dimensions {
+	return a.iconControl(gtx, &a.updatesButton, a.settingsIcon, 34, 18, "Settings")
+}

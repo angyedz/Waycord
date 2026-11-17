@@ -73,3 +73,22 @@ func TestReactionChipRemainsCompact(t *testing.T) {
 		t.Fatalf("reaction is too large: %v", size)
 	}
 }
+
+func TestMessageSelectionSurvivesRelayout(t *testing.T) {
+	app := New()
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}, Constraints: layout.Constraints{Max: image.Pt(700, 400)}}
+	index := 2
+	app.messageContent(gtx, index, app.messages[index])
+	body := &app.reactionWidget(index).body
+	body.SetCaret(0, 3)
+	selected := body.SelectedText()
+	if selected == "" {
+		t.Fatal("message text was not selectable")
+	}
+	ops.Reset()
+	app.messageContent(gtx, index, app.messages[index])
+	if body.SelectedText() != selected {
+		t.Fatal("selection was lost on relayout")
+	}
+}
