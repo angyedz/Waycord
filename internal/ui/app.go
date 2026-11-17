@@ -18,10 +18,12 @@ type App struct {
 	serverButtons                         [4]widget.Clickable
 	channelButtons                        [4]widget.Clickable
 	chatButton, updatesButton, sendButton widget.Clickable
+	profileButton                         widget.Clickable
 	channelOptions                        [3]widget.Clickable
 	activeChannel                         int
 	activeServer                          int
 	updatesView                           bool
+	showProfile                           bool
 	updateChannel                         int
 	messageList                           layout.List
 	composer                              widget.Editor
@@ -29,7 +31,7 @@ type App struct {
 }
 
 func New() *App {
-	a := &App{palette: theme.Dark, activeChannel: 1, messageList: layout.List{Axis: layout.Vertical}}
+	a := &App{palette: theme.Dark, activeChannel: 1, showProfile: true, messageList: layout.List{Axis: layout.Vertical}}
 	a.theme = material.NewTheme()
 	a.theme.Palette = material.Palette{Bg: a.palette.Canvas, Fg: a.palette.Text, ContrastBg: a.palette.Accent, ContrastFg: a.palette.Rail}
 	a.composer.SingleLine = true
@@ -57,6 +59,9 @@ func (a *App) process(gtx layout.Context) {
 	}
 	if a.updatesButton.Clicked(gtx) {
 		a.updatesView = true
+	}
+	if a.profileButton.Clicked(gtx) {
+		a.showProfile = !a.showProfile
 	}
 	for i := range a.channelOptions {
 		if a.channelOptions[i].Clicked(gtx) {
@@ -128,8 +133,8 @@ func (a *App) channelRail(gtx layout.Context) layout.Dimensions {
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return fixedHeight(70, inset(20, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-						layout.Rigid(a.text("Waycord", 16, a.palette.Text)),
-						vspace(3), layout.Rigid(a.text("YOUR WORKSPACE", 10, a.palette.Subtle)),
+						layout.Rigid(a.text("Waycord", 18, a.palette.Text)),
+						vspace(3), layout.Rigid(a.text("YOUR SPACE", 10, a.palette.Subtle)),
 					)
 				}))(gtx)
 			}),
@@ -144,7 +149,7 @@ func (a *App) channelRail(gtx layout.Context) layout.Dimensions {
 							return a.clickLabel(gtx, &a.channelButtons[i], "#  "+n, i == a.activeChannel && !a.updatesView)
 						}), vspace(4))
 					}
-					kids = append(kids, vspace(22), layout.Rigid(inset(9, a.text("VOICE CHANNELS", 11, a.palette.Subtle))), vspace(12), layout.Rigid(inset(12, a.text("◖  Lounge  ·  soon", 13, a.palette.Muted))))
+					kids = append(kids, vspace(22), layout.Rigid(inset(9, a.text("VOICE CHANNELS", 11, a.palette.Subtle))), vspace(8), layout.Rigid(inset(12, a.text("Lounge  ·  coming soon", 13, a.palette.Muted))))
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
 				})
 			}),
@@ -167,11 +172,18 @@ func (a *App) workspace(gtx layout.Context) layout.Dimensions {
 			if a.updatesView {
 				return a.updates(gtx)
 			}
-			return a.chat(gtx)
+			if !a.showProfile || gtx.Constraints.Max.X < gtx.Dp(730) {
+				return a.chat(gtx)
+			}
+			return layout.Flex{}.Layout(gtx,
+				layout.Flexed(1, a.chat),
+				layout.Rigid(fixedWidth(236, a.profile)),
+			)
 		}),
 	)
 }
 func (a *App) header(gtx layout.Context) layout.Dimensions {
+	wide := gtx.Constraints.Max.X >= gtx.Dp(730)
 	return rounded(gtx, a.palette.Canvas, 0, fixedHeight(70, func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Left: 24, Right: 24, Top: 13, Bottom: 13}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
@@ -186,6 +198,14 @@ func (a *App) header(gtx layout.Context) layout.Dimensions {
 				hspace(10),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return a.pill(gtx, &a.updatesButton, "Updates", a.updatesView)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if a.updatesView || !wide {
+						return layout.Dimensions{}
+					}
+					return layout.Inset{Left: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return a.pill(gtx, &a.profileButton, "Profile", a.showProfile)
+					})
 				}),
 			)
 		})

@@ -17,7 +17,7 @@ var Messages = []Message{
 	{Channel: 1, Author: "angyedz", Time: "10:26", Body: "Go + Gio. No browser process, no Electron.", Self: true},
 	{Channel: 1, Author: "k66", Time: "10:27", Body: "The update system needs a rollback. No exceptions."},
 	{Channel: 1, Author: "mira", Time: "10:31", Body: "Signed releases + a lightweight launcher could do it."},
-	{Channel: 1, Author: "angyedz", Time: "10:35", Body: "Already working on that. 🔥", Self: true},
+	{Channel: 1, Author: "angyedz", Time: "10:35", Body: "Already working on that.", Self: true},
 	{Channel: 0, Author: "mira", Time: "09:00", Body: "Welcome to the Waycord offline preview!"},
 	{Channel: 0, Author: "angyedz", Time: "09:04", Body: "This is demo data only. No Discord connection is active.", Self: true},
 	{Channel: 2, Author: "k66", Time: "Yesterday", Body: "Dark mode, compact panels, quiet accents."},

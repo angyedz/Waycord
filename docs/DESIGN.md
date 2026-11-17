@@ -2,23 +2,23 @@
 
 ## Intent
 
-Dense without feeling cramped. Crisp typography, neutral charcoal panels and a restrained sage accent. Message text sits directly on the canvas; rounded surfaces are reserved for controls and inputs. Fast response and an interface that still looks intentional when its content is empty.
+Dense without feeling cramped. Crisp typography, tonal dark surfaces, rounded controls and a restrained violet accent inspired by Material design. Message text sits directly on the canvas; rounded surfaces are reserved for controls and inputs. The optional community panel hides at narrow widths. Fast response and an interface that still looks intentional when its content is empty.
 
 ## Tokens
 
 | Role | Hex |
 | --- | --- |
-| Canvas | `#17191F` |
-| Server rail | `#101217` |
-| Channel rail | `#1C1F26` |
-| Surface | `#242830` |
-| Raised surface | `#303540` |
-| Accent | `#91B9AD` |
-| Accent surface | `#33443F` |
-| Primary text | `#ECEEF2` |
-| Muted text | `#B4BAC5` |
-| Subtle text | `#89919F` |
-| Positive | `#8CCAB0` |
+| Canvas | `#141218` |
+| Server rail | `#0F0D13` |
+| Channel rail | `#1D1B20` |
+| Surface | `#2B2930` |
+| Raised surface | `#36343B` |
+| Accent | `#D0BCFF` |
+| Accent surface | `#4A4458` |
+| Primary text | `#E7E0E9` |
+| Muted text | `#CAC4D0` |
+| Subtle text | `#AAA4B1` |
+| Positive | `#A8DAB5` |
 
 Single source of truth: `internal/ui/theme/palette.go`.
 

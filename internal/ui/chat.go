@@ -29,7 +29,7 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: 12, Bottom: 22, Left: 24, Right: 24}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return rounded(gtx, a.palette.Surface, 8, padding(layout.Inset{Left: 16, Right: 10, Top: 9, Bottom: 9}, func(gtx layout.Context) layout.Dimensions {
+				return rounded(gtx, a.palette.Surface, 24, padding(layout.Inset{Left: 20, Right: 8, Top: 7, Bottom: 7}, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							input := material.Editor(a.theme, &a.composer, "Message in local preview…")
