@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 )
 
@@ -15,11 +14,9 @@ func TestManagedUpdaterPathRequiresAnExecutableInsideInstallRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := ManagedUpdaterPath(root)
-	pathMatches := got == path
-	if runtime.GOOS == "windows" {
-		pathMatches = strings.EqualFold(filepath.Clean(got), filepath.Clean(path))
-	}
-	if err != nil || !pathMatches {
+	gotInfo, gotErr := os.Stat(got)
+	wantInfo, wantErr := os.Stat(path)
+	if err != nil || gotErr != nil || wantErr != nil || !os.SameFile(gotInfo, wantInfo) {
 		t.Fatalf("managed updater path = %q, %v; want %q", got, err, path)
 	}
 
