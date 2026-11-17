@@ -25,6 +25,7 @@ Single source of truth: `internal/ui/theme/palette.go`.
 ## Desktop layout
 
 - **Navigation:** server rail and channel list form one rounded surface, with a fine divider. The channel list can be collapsed or resized; its chosen width is retained while the app runs. Server supplied categories collapse by their own names; uncategorized channels stay at the top.
+- **Server pages:** guide, events, roles and boosts appear only when the selected server has matching data. Guide steps and event attendance update local preview state; boost progress is informational.
 - **Workspace:** flexible width, 58dp header, virtualized message list and message composer.
 - **Direct messages:** their own navigation entry and contact list; a compact profile for the selected contact appears only in the direct conversation when there is room.
 - **Own profile:** clicking the user panel opens a floating card with local presence selection, editable display name and status; voice location appears only while connected.

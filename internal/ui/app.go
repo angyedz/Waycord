@@ -49,6 +49,12 @@ type App struct {
 	saveUIPreferences                      func(string, bool, bool) error
 	directButton, contactButton            widget.Clickable
 	serverButtons                          []widget.Clickable
+	serverFeatureButtons                   [][]widget.Clickable
+	guideStepButtons                       [][]widget.Clickable
+	eventInterestButtons                   [][]widget.Clickable
+	activeServerFeature                    int
+	guideCompleted                         map[string]bool
+	eventInterested                        map[string]bool
 	categoryButtons                        map[string]*widget.Clickable
 	collapsedCategories                    map[string]bool
 	categoryTransitions                    map[string]*panelTransition
@@ -156,7 +162,7 @@ type App struct {
 }
 
 func New() *App {
-	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, contextShown: -1, replyTarget: -1, palette: theme.Dark, themeName: "dark", activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}, updateChannel: "stable", updateResult: make(chan updateCheckResult, 1), updateSignals: make(chan struct{}, 1), updateChecker: ota.GitHubSource{Owner: "angyedz", Repository: "Waycord"}, updateCtx: context.Background(), selfProfileName: "angyedz", selfProfileUsername: "angyedz", selfProfileStatus: "On a break"}
+	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, contextShown: -1, replyTarget: -1, activeServerFeature: serverFeatureNone, palette: theme.Dark, themeName: "dark", activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}, updateChannel: "stable", updateResult: make(chan updateCheckResult, 1), updateSignals: make(chan struct{}, 1), updateChecker: ota.GitHubSource{Owner: "angyedz", Repository: "Waycord"}, updateCtx: context.Background(), selfProfileName: "angyedz", selfProfileUsername: "angyedz", selfProfileStatus: "On a break"}
 	a.selfPresence = 3
 	a.theme = material.NewTheme()
 	if shaper, err := theme.NewShaper(); err == nil {
@@ -172,10 +178,20 @@ func New() *App {
 	a.attachIcon, _ = widget.NewIcon(icons.ContentAddCircleOutline)
 	a.attachmentDrafts = make(map[string]*attachments.Attachment)
 	a.serverButtons = make([]widget.Clickable, len(mock.Servers))
+	a.serverFeatureButtons = make([][]widget.Clickable, len(mock.Servers))
+	a.guideStepButtons = make([][]widget.Clickable, len(mock.Servers))
+	a.eventInterestButtons = make([][]widget.Clickable, len(mock.Servers))
+	a.guideCompleted = make(map[string]bool)
+	a.eventInterested = make(map[string]bool)
 	a.serverChannels = make([]int, len(mock.Servers))
 	a.channelButtons = make([][]widget.Clickable, len(mock.Servers))
 	for i, server := range mock.Servers {
 		a.channelButtons[i] = make([]widget.Clickable, len(server.Channels))
+		a.serverFeatureButtons[i] = make([]widget.Clickable, serverFeatureCount)
+		if server.Guide != nil {
+			a.guideStepButtons[i] = make([]widget.Clickable, len(server.Guide.Steps))
+		}
+		a.eventInterestButtons[i] = make([]widget.Clickable, len(server.Events))
 	}
 	a.categoryButtons = make(map[string]*widget.Clickable)
 	a.collapsedCategories = make(map[string]bool)
@@ -325,12 +341,39 @@ func (a *App) process(gtx layout.Context) {
 			a.collapsedCategories[key] = !a.collapsedCategories[key]
 		}
 	}
+	for server, buttons := range a.serverFeatureButtons {
+		for feature := range buttons {
+			if server == a.activeServer && buttons[feature].Clicked(gtx) && serverHasFeature(mock.Servers[server], feature) {
+				a.activeServerFeature = feature
+				a.updatesView, a.membersOpen, a.emojiOpen = false, false, false
+				a.searchOpen, a.pinsOnly = false, false
+				a.searchEditor.SetText("")
+				a.contextTarget, a.reactionTarget = -1, -1
+			}
+		}
+	}
+	for server, buttons := range a.guideStepButtons {
+		for step := range buttons {
+			if server == a.activeServer && buttons[step].Clicked(gtx) {
+				a.toggleGuideStep(server, step)
+			}
+		}
+	}
+	for server, buttons := range a.eventInterestButtons {
+		for event := range buttons {
+			if server == a.activeServer && buttons[event].Clicked(gtx) {
+				a.toggleEventInterest(server, event)
+			}
+		}
+	}
 	if a.chatButton.Clicked(gtx) {
 		a.updatesView = false
+		a.activeServerFeature = serverFeatureNone
 	}
 	if a.updatesButton.Clicked(gtx) {
 		a.contextTarget = -1
 		a.updatesView = true
+		a.activeServerFeature = serverFeatureNone
 		a.searchOpen = false
 		a.searchEditor.SetText("")
 		a.pinsOnly = false
@@ -423,6 +466,7 @@ func (a *App) switchConversation(direct bool, server, channel int) {
 	}
 	a.composerDrafts[a.conversationKey()] = a.composer.Text()
 	a.direct, a.activeServer, a.activeChannel, a.updatesView = direct, server, channel, false
+	a.activeServerFeature = serverFeatureNone
 	if !direct {
 		a.serverChannels[server] = channel
 	}
@@ -547,6 +591,9 @@ func (a *App) animatedWorkspaceContent(gtx layout.Context) layout.Dimensions {
 	if a.direct {
 		key = "direct:mira"
 	}
+	if a.activeServerFeature >= 0 {
+		key += ":feature:" + serverFeatureNames[a.activeServerFeature]
+	}
 	if a.updatesView {
 		key = "settings:" + settingsNames[a.settingsSection]
 	}
@@ -567,6 +614,8 @@ func (a *App) animatedWorkspaceContent(gtx layout.Context) layout.Dimensions {
 	var child layout.Dimensions
 	if a.updatesView {
 		child = a.settings(gtx)
+	} else if a.activeServerFeature >= 0 {
+		child = a.serverFeatureScreen(gtx)
 	} else {
 		showProfile := a.direct && a.profileOpen && gtx.Constraints.Max.X >= gtx.Dp(730)
 		profileProgress := a.transition(gtx, &a.profileSlide, boolProgress(showProfile), 220*time.Millisecond)
@@ -589,7 +638,8 @@ func (a *App) animatedWorkspaceContent(gtx layout.Context) layout.Dimensions {
 }
 func (a *App) header(gtx layout.Context) layout.Dimensions {
 	wide := gtx.Constraints.Max.X >= gtx.Dp(730)
-	searchProgress := a.transition(gtx, &a.searchSlide, boolProgress(a.searchOpen && !a.updatesView), 180*time.Millisecond)
+	searchEnabled := !a.updatesView && a.activeServerFeature == serverFeatureNone
+	searchProgress := a.transition(gtx, &a.searchSlide, boolProgress(a.searchOpen && searchEnabled), 180*time.Millisecond)
 	return rounded(gtx, a.palette.Canvas, 0, fixedHeight(58, func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Left: 20, Right: 20, Top: 8, Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			children := []layout.FlexChild{
@@ -599,7 +649,7 @@ func (a *App) header(gtx layout.Context) layout.Dimensions {
 					})
 				}),
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					if (a.searchOpen || searchProgress > 0) && !a.updatesView {
+					if (a.searchOpen || searchProgress > 0) && searchEnabled {
 						return a.searchField(gtx, searchProgress)
 					}
 					title := "# " + mock.Servers[a.activeServer].Channels[a.activeChannel]
@@ -608,6 +658,8 @@ func (a *App) header(gtx layout.Context) layout.Dimensions {
 					}
 					if a.updatesView {
 						title = "Settings / " + settingsNames[a.settingsSection]
+					} else if a.activeServerFeature >= 0 {
+						title = serverFeatureNames[a.activeServerFeature]
 					}
 					offset := op.Offset(image.Pt(0, gtx.Dp(4))).Push(gtx.Ops)
 					dimensions := layout.W.Layout(gtx, a.text(title, 19, a.palette.Text))
@@ -615,11 +667,11 @@ func (a *App) header(gtx layout.Context) layout.Dimensions {
 					return dimensions
 				}),
 			}
-			if a.updatesView {
+			if a.updatesView || a.activeServerFeature >= 0 {
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return a.pill(gtx, &a.chatButton, "Back", false)
 				}))
-			} else if a.searchOpen || searchProgress > 0 {
+			} else if (a.searchOpen || searchProgress > 0) && searchEnabled {
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return a.iconControl(gtx, &a.searchCloseButton, a.closeIcon, 36, 16, "Close search")
 				}))

@@ -38,13 +38,16 @@ func (a *App) serverChannelsLayout(gtx layout.Context) layout.Dimensions {
 	return a.serverChannelList.Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
 		serverIndex := a.activeServer
 		server := mock.Servers[serverIndex]
-		var children []layout.FlexChild
+		children := a.serverFeatureRows()
+		if len(children) > 0 {
+			children = append(children, vspace(8))
+		}
 		addChannel := func(index int) {
 			if index < 0 || index >= len(server.Channels) || index >= len(a.channelButtons[serverIndex]) {
 				return
 			}
 			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return a.clickLabel(gtx, &a.channelButtons[serverIndex][index], "#  "+server.Channels[index], index == a.activeChannel && !a.updatesView)
+				return a.clickLabel(gtx, &a.channelButtons[serverIndex][index], "#  "+server.Channels[index], index == a.activeChannel && !a.updatesView && a.activeServerFeature == serverFeatureNone)
 			}), vspace(4))
 		}
 		for _, index := range server.Uncategorized {
@@ -75,7 +78,7 @@ func (a *App) serverChannelsLayout(gtx layout.Context) layout.Dimensions {
 							}
 							index := index
 							channels = append(channels, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return a.clickLabel(gtx, &a.channelButtons[serverIndex][index], "#  "+server.Channels[index], index == a.activeChannel && !a.updatesView)
+								return a.clickLabel(gtx, &a.channelButtons[serverIndex][index], "#  "+server.Channels[index], index == a.activeChannel && !a.updatesView && a.activeServerFeature == serverFeatureNone)
 							}), vspace(4))
 						}
 						return layout.Flex{Axis: layout.Vertical}.Layout(gtx, channels...)
