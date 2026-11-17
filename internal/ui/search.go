@@ -91,8 +91,11 @@ func centeredSearchInput(gtx layout.Context, input layout.Widget) layout.Dimensi
 }
 
 func (a *App) visibleMessages() []int {
-	query := strings.ToLower(strings.TrimSpace(a.searchEditor.Text()))
-	visible := make([]int, 0, len(a.messages))
+	query := ""
+	if a.searchEditor.Len() > 0 {
+		query = strings.ToLower(strings.TrimSpace(a.searchEditor.Text()))
+	}
+	visible := a.visibleMessageIndices[:0]
 	for index, message := range a.messages {
 		if message.Direct != a.direct || (!a.direct && (message.Server != a.activeServer || message.Channel != a.activeChannel)) {
 			continue
@@ -114,5 +117,6 @@ func (a *App) visibleMessages() []int {
 		}
 		visible = append(visible, index)
 	}
+	a.visibleMessageIndices = visible
 	return visible
 }

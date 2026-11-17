@@ -7,12 +7,32 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
+
+	"github.com/angyedz/Waycord/internal/ui/mock"
 )
 
 func TestSearchEditorIsSingleLine(t *testing.T) {
 	app := New()
 	if !app.searchEditor.SingleLine {
 		t.Fatal("channel search should use a single-line editor")
+	}
+}
+
+func TestVisibleMessagesReusesScratchBufferAfterWarmup(t *testing.T) {
+	app := New()
+	app.messages = make([]mock.Message, 1200)
+	for i := range app.messages {
+		app.messages[i] = mock.Message{Channel: app.activeChannel, Author: "mira", Body: "Preview"}
+	}
+	visible := app.visibleMessages()
+	if len(visible) != len(app.messages) {
+		t.Fatalf("visible message count = %d, want %d", len(visible), len(app.messages))
+	}
+	allocations := testing.AllocsPerRun(100, func() {
+		visible = app.visibleMessages()
+	})
+	if allocations != 0 {
+		t.Fatalf("visibleMessages allocated %.1f objects per warmed call, want 0", allocations)
 	}
 }
 

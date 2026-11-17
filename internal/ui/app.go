@@ -168,6 +168,7 @@ type App struct {
 	memberList                                 layout.List
 	composer                                   widget.Editor
 	messages                                   []mock.Message
+	visibleMessageIndices                      []int
 	reactions                                  reactions.Store
 	reactionWidgets                            map[int]*reactionWidget
 	reactionTarget                             int
