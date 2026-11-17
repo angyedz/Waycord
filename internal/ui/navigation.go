@@ -40,6 +40,27 @@ func (a *App) railButton(gtx layout.Context, button *widget.Clickable, label str
 	})))
 }
 
+func (a *App) directContact(gtx layout.Context, name string, selected bool) layout.Dimensions {
+	background := a.palette.Sidebar
+	if selected {
+		background = a.palette.AccentDim
+	}
+	background = a.interactionColor(gtx, &a.contactButton, background, a.palette.Surface2)
+	return a.contactButton.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return rounded(gtx, background, 14, padding(layout.Inset{Left: 8, Right: 10, Top: 5, Bottom: 5}, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(fixedWidth(28, fixedHeight(28, func(gtx layout.Context) layout.Dimensions {
+					return rounded(gtx, a.palette.Surface2, 14, func(gtx layout.Context) layout.Dimensions {
+						return layout.Center.Layout(gtx, a.text(firstLetter(name), 13, a.palette.Text))
+					})
+				}))),
+				hspace(9),
+				layout.Flexed(1, a.text(name, 14, a.palette.Text)),
+			)
+		}))
+	})
+}
+
 // directProfile is shown only for the currently selected direct conversation.
 func (a *App) directProfile(gtx layout.Context) layout.Dimensions {
 	gtx.Constraints.Min.Y = 0

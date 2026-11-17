@@ -298,7 +298,7 @@ func (a *App) channelRail(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 						layout.Rigid(inset(9, a.text("DIRECT MESSAGES", 11, a.palette.Subtle))),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return a.clickLabel(gtx, &a.contactButton, "mira", !a.updatesView)
+							return a.directContact(gtx, "mira", !a.updatesView)
 						}),
 					)
 				}
