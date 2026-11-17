@@ -1,6 +1,6 @@
 # Waycord OTA v1: signed, versioned, recoverable
 
-**Status:** working standalone updater primitives + CLI. No public releases or production signing key are configured, and UI update checks are *not* connected. Only manually invoked `check`/`install` commands with an explicitly trusted public key can download releases.
+**Status:** the UI can inspect GitHub Releases, verify their signed platform manifest, show release notes, and remember the selected channel and automatic-check preference. For an app launched from its user-managed version slot, it can download and stage a verified update with progress, then hand restart to the bundled launcher. System and package-manager installs do not get a self-install action. This repository has no configured public release key or published releases, so the current development build cannot check or install updates and fails closed.
 
 ## Security design
 
@@ -9,15 +9,23 @@
 3. Canonicalize the fixed Go `Payload` struct using `encoding/json.Marshal` and verify its Ed25519 signature against a **trusted** 32-byte public key. Never trust a key fetched from the same manifest.
 4. Download the named raw executable over HTTPS (bounded to the signed size, max 300 MiB), checking the exact byte length and SHA-256 hash before installation.
 5. Copy into `<install>/versions/vX.Y.Z/waycord[.exe]` and stage the new version in a small redundant state store. Existing builds are never overwritten.
-6. On `waycord-updater launch`, the candidate must signal first-frame readiness via a random launcher challenge within 15 seconds. Otherwise the pending version is discarded and the previous build launches. After successful readiness, the new version becomes current.
+6. The UI queries the GitHub Releases API for the latest non-draft release in the selected channel and requires the signed manifest asset to match the release tag, OS and architecture. Automatic checks run every 12 hours when enabled. Checks make no request if the build has no valid pinned key.
+7. On `waycord-updater launch`, the candidate must signal first-frame readiness via a random launcher challenge within 15 seconds. During the next 10 seconds, the GUI event loop sends a heartbeat once per second. An early exit or three seconds without a heartbeat rejects the candidate; only after the full observation window does the new version become current.
 
 Two checksummed state slots are alternated (`state-0.json`, `state-1.json`), so a torn write doesn't destroy both records. This is **crash recovery**, not anti-tamper protection against another process running as the same user. Never run the updater with elevated permissions. The launcher should eventually use an interprocess lock for concurrent executions and package-manager integrations.
 
-**Limitations:** successful first-frame health does not guarantee long-term stability; updater self-updates, post-launch crash rollback windows, transaction locks, installation UI, Windows code-signing and full end-to-end signed-release CI are future work. Retaining previous versions consumes some disk. Do not use this to overwrite files managed by a distro package manager.
+**Limitations:** the in-app install action is only enabled when Waycord confirms the current executable is the active version in the per-user store and finds `waycord-updater[.exe]` in that store's root. Initial installs and recovery remain available through the standalone updater CLI. The heartbeat detects a stalled GUI event loop during its observation window, but cannot detect every internal UI failure or crashes after those 10 seconds. A slow or suspended desktop can also miss heartbeats and cause a conservative rollback. Updater self-updates, longer-term crash recovery, transaction locks, Windows code-signing and full end-to-end signed-release CI are future work. Retaining previous versions consumes some disk. Do not use this to overwrite files managed by a distro package manager.
 
 ## Release manifest format
 
-A new manifest is generated **per channel, OS and architecture**. The example below uses placeholders and is not a real release:
+A new manifest is generated **per channel, OS and architecture**. Upload it to each GitHub Release using the exact asset name for its target; the example below uses placeholders and is not a real release:
+
+```text
+waycord-linux-amd64-stable.json
+waycord-windows-amd64-stable.json
+```
+
+Use the matching `beta` or `nightly` channel in the asset name for prereleases. The UI confirms the release tag, channel, OS and architecture against the signed manifest.
 
 ```json
 {
@@ -66,6 +74,14 @@ The private key is **not** committed, uploaded to an Actions artifact, or bundle
 
 ## Client commands
 
+Release builds may pin the public verifier with this Go linker flag. This is a public key, not the signing private key. The repository intentionally leaves it empty:
+
+```sh
+go build -ldflags "-X github.com/angyedz/Waycord/internal/version.SigningPublicKeyHex=YOUR_PUBLIC_KEY_HEX" ./cmd/waycord
+```
+
+The update screen stores its channel and automatic-check preference in the user config directory. Automatic checks default to on; no request is made while the public key is missing or invalid.
+
 Download release metadata and verify without installing:
 
 ```sh
@@ -98,4 +114,4 @@ The default user-scoped installation is under `os.UserConfigDir()/waycord/instal
 3. Sign each immutable release payload with the offline Ed25519 key.
 4. Smoke-test `check → install → launch` from a clean installation and upgrade from an old version.
 5. Simulate a candidate that exits before health acknowledgment; verify fallback to the previous build.
-6. Integrate opt-in GUI update checks only after the public key and distribution channel are established.
+6. Smoke-test the GUI release check with the published public key and its matching GitHub release assets.

@@ -1,41 +1,49 @@
-# Waycord design system v0
+# Waycord design system
 
 ## Intent
 
-Dense without feeling cramped. Crisp typography, muted slate panels, one restrained violet accent, comfortable 12–16dp corners, no unnecessary gradients. Fast response and an interface that still looks intentional when its content is empty.
+Dense without feeling cramped. Crisp typography, tonal dark surfaces, rounded controls and a restrained violet accent inspired by Material design. Message text sits directly on the canvas; rounded surfaces are reserved for controls and inputs. Fast response and an interface that still looks intentional when its content is empty.
 
 ## Tokens
 
 | Role | Hex |
 | --- | --- |
-| Canvas | `#10141D` |
-| Server rail | `#0B0E15` |
-| Channel rail | `#141925` |
-| Surface | `#1B2230` |
-| Raised surface | `#252D3E` |
-| Accent | `#9585FA` |
-| Accent surface | `#342E58` |
-| Primary text | `#F0F3FA` |
-| Muted text | `#A0AABD` |
-| Subtle text | `#697487` |
-| Positive | `#60D5A4` |
+| Canvas | `#141218` |
+| Server rail | `#0F0D13` |
+| Channel rail | `#1D1B20` |
+| Surface | `#2B2930` |
+| Raised surface | `#36343B` |
+| Accent | `#D0BCFF` |
+| Accent surface | `#4A4458` |
+| Primary text | `#E7E0E9` |
+| Muted text | `#CAC4D0` |
+| Subtle text | `#AAA4B1` |
+| Positive | `#A8DAB5` |
 
 Single source of truth: `internal/ui/theme/palette.go`.
 
-## Desktop layout (first iteration)
+## Desktop layout
 
-- **Server rail:** 66dp, full window height, strong contrast with the rest.
-- **Channel rail:** 230dp, grouped text/voice channels; bottom connection-state section.
-- **Workspace:** flexible width, 70dp header, virtualized message list and message composer.
-- **Updates screen:** separate workspace route with channel picker and explicit explanation of signed OTA steps.
-- **Minimum window:** 800 × 540dp; responsive reflow below this size is future work.
+- **Navigation:** server rail and channel list form one rounded surface, with a fine divider. The channel list can be collapsed or resized; its chosen width is retained while the app runs. Server supplied categories collapse by their own names; uncategorized channels stay at the top.
+- **Server pages:** guide, events, roles and boosts appear only when the selected server has matching data. Guide steps and event attendance update local preview state; boost progress is informational.
+- **Workspace:** flexible width, 58dp header, virtualized message list and message composer.
+- **Direct messages:** their own navigation entry and contact list; a compact profile for the selected contact appears only in the direct conversation when there is room.
+- **Own profile:** clicking the user panel opens a floating card with local presence selection, editable display name and status; voice location appears only while connected. Name, status, and presence are saved with the other local UI preferences.
+- **Members:** the server member panel is optional and is only laid out while open.
+- **Message tools:** search filters the current conversation. Pins filter the current channel; pin, unpin, reply and copy actions are available from the message menu. Own text messages can be edited in the composer; own message deletion requires confirmation and repairs local reply/reaction references.
+- **Emoji and media:** a bundled color font supplies a fallback on both desktop platforms. The composer opens a compact local emoji, GIF and sticker picker; selected samples appear in the active conversation.
+- **Reactions:** hovering over a message shows quick reactions and a local emoji picker; selecting an existing reaction again removes it. Hover state does not change row height.
+- **Settings:** Appearance offers dark, midnight and light themes plus compact messages; Performance can reduce motion; Audio controls microphone/deafen state; Video controls are only present in an active voice preview; Updates contains signed release discovery.
+- **Motion:** controls, overlays, sidebars and workspace transitions animate by default. The Reduce motion setting disables movement and hover transitions.
+- **Minimum window:** 800 × 540dp, with compact behavior for narrow widths.
 
 ## Interaction policies
 
-- Everything in the current build is labeled `offline preview` where appropriate. Clicking Send updates local fixture data only.
-- Server/channel controls work with preview state, without network traffic.
-- Update channel selectors change design-preview state only; they do not claim to check for actual releases.
-- Actual OTA is through `waycord-updater` CLI until trusted signing setup and GUI integration exist.
+- Buttons size to their label and intentional padding, rather than inheriting a header or panel's minimum dimensions.
+- The application uses local fixture data. Send, reactions, reply, pins, profile edits, search, channel selection, voice controls and settings change local state only.
+- Channel controls switch between local preview conversations.
+- Appearance and profile settings are stored under the operating-system configuration directory with two recoverable generations. Appearance changes merge into the current record so they preserve the local profile; profile changes are applied only after the write succeeds.
+- Update discovery is available in Settings when a trusted signing key is configured. Installation stays in the standalone updater until the trust key and release workflow are configured.
 - Focus states, keyboard navigation, high DPI, accessibility, empty/loading/error views, and icons are the next design passes.
 
 ## Performance goals (not measured results)

@@ -15,9 +15,38 @@ func Hex(v uint32) color.NRGBA {
 }
 
 var Dark = Palette{
-	Canvas: Hex(0x10141D), Rail: Hex(0x0B0E15), Sidebar: Hex(0x141925),
-	Surface: Hex(0x1B2230), Surface2: Hex(0x252D3E),
-	Text: Hex(0xF0F3FA), Muted: Hex(0xA0AABD), Subtle: Hex(0x697487),
-	Accent: Hex(0x9585FA), AccentDim: Hex(0x342E58), Border: Hex(0x2B3444),
-	Positive: Hex(0x60D5A4), Warning: Hex(0xE9BD79),
+	Canvas: Hex(0x141218), Rail: Hex(0x0F0D13), Sidebar: Hex(0x1D1B20),
+	Surface: Hex(0x2B2930), Surface2: Hex(0x36343B),
+	Text: Hex(0xE7E0E9), Muted: Hex(0xCAC4D0), Subtle: Hex(0xAAA4B1),
+	Accent: Hex(0xD0BCFF), AccentDim: Hex(0x4A4458), Border: Hex(0x49454F),
+	Positive: Hex(0xA8DAB5), Warning: Hex(0xE9BD79),
+}
+
+var Midnight = Palette{
+	Canvas: Hex(0x09080C), Rail: Hex(0x050508), Sidebar: Hex(0x121116),
+	Surface: Hex(0x1C1A21), Surface2: Hex(0x2B2930),
+	Text: Hex(0xF0ECF4), Muted: Hex(0xCBC5D0), Subtle: Hex(0xA7A1AD),
+	Accent: Hex(0xD0BCFF), AccentDim: Hex(0x40394D), Border: Hex(0x38353E),
+	Positive: Hex(0xA8DAB5), Warning: Hex(0xE9BD79),
+}
+
+var Light = Palette{
+	Canvas: Hex(0xF7F5FA), Rail: Hex(0xEAE7EF), Sidebar: Hex(0xF0EDF5),
+	Surface: Hex(0xFFFFFF), Surface2: Hex(0xE6E1EA),
+	Text: Hex(0x201A24), Muted: Hex(0x49454F), Subtle: Hex(0x625B66),
+	Accent: Hex(0x6750A4), AccentDim: Hex(0xEADDFF), Border: Hex(0xCAC4D0),
+	Positive: Hex(0x1A6728), Warning: Hex(0x7A5900),
+}
+
+func ForName(name string) (Palette, bool) {
+	switch name {
+	case "dark":
+		return Dark, true
+	case "midnight":
+		return Midnight, true
+	case "light":
+		return Light, true
+	default:
+		return Palette{}, false
+	}
 }

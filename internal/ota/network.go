@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+type ProgressFunc func(downloaded, total int64)
+
 func secureClient() *http.Client {
 	return &http.Client{
 		Timeout: 3 * time.Minute,
@@ -36,6 +38,13 @@ func secureURL(address string) error {
 }
 
 func FetchManifest(ctx context.Context, address string, key ed25519.PublicKey) (Payload, error) {
+	return fetchManifest(ctx, address, key, secureClient())
+}
+
+func fetchManifest(ctx context.Context, address string, key ed25519.PublicKey, client *http.Client) (Payload, error) {
+	if len(key) != ed25519.PublicKeySize {
+		return Payload{}, errors.New("no trusted Ed25519 public key configured")
+	}
 	if err := secureURL(address); err != nil {
 		return Payload{}, err
 	}
@@ -43,7 +52,7 @@ func FetchManifest(ctx context.Context, address string, key ed25519.PublicKey) (
 	if err != nil {
 		return Payload{}, err
 	}
-	resp, err := secureClient().Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return Payload{}, err
 	}
@@ -61,6 +70,14 @@ func FetchManifest(ctx context.Context, address string, key ed25519.PublicKey) (
 // Download verifies size and SHA-256 before returning a temporary artifact.
 // The caller owns the returned path and must remove it after installing.
 func Download(ctx context.Context, p Payload, tempDir string) (string, error) {
+	return download(ctx, p, tempDir, secureClient())
+}
+
+func download(ctx context.Context, p Payload, tempDir string, client *http.Client) (string, error) {
+	return downloadWithProgress(ctx, p, tempDir, client, nil)
+}
+
+func downloadWithProgress(ctx context.Context, p Payload, tempDir string, client *http.Client, progress ProgressFunc) (string, error) {
 	if err := p.Validate(); err != nil {
 		return "", err
 	}
@@ -74,7 +91,7 @@ func Download(ctx context.Context, p Payload, tempDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	resp, err := secureClient().Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -99,7 +116,8 @@ func Download(ctx context.Context, p Payload, tempDir string) (string, error) {
 	}
 	h := sha256.New()
 	var n int64
-	n, err = io.Copy(io.MultiWriter(f, h), io.LimitReader(resp.Body, p.Size+1))
+	reader := progressReader{reader: io.LimitReader(resp.Body, p.Size+1), total: p.Size, progress: progress}
+	n, err = io.Copy(io.MultiWriter(f, h), &reader)
 	if err != nil {
 		return "", err
 	}
@@ -117,4 +135,20 @@ func Download(ctx context.Context, p Payload, tempDir string) (string, error) {
 	}
 	success = true
 	return filepath.Clean(path), nil
+}
+
+type progressReader struct {
+	reader     io.Reader
+	total      int64
+	downloaded int64
+	progress   ProgressFunc
+}
+
+func (r *progressReader) Read(buffer []byte) (int, error) {
+	n, err := r.reader.Read(buffer)
+	r.downloaded += int64(n)
+	if n > 0 && r.progress != nil {
+		r.progress(min(r.downloaded, r.total), r.total)
+	}
+	return n, err
 }

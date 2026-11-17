@@ -1,184 +1,776 @@
 package ui
 
 import (
+	"context"
+	"crypto/ed25519"
+	"image"
 	"strings"
+	"time"
 
+	"gioui.org/font"
+	"gioui.org/io/key"
 	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"golang.org/x/exp/shiny/materialdesign/icons"
 
+	"github.com/angyedz/Waycord/internal/core/attachments"
+	coremessages "github.com/angyedz/Waycord/internal/core/messages"
+	"github.com/angyedz/Waycord/internal/core/reactions"
+	"github.com/angyedz/Waycord/internal/core/voicepreview"
+	"github.com/angyedz/Waycord/internal/ota"
+	uiMarkdown "github.com/angyedz/Waycord/internal/ui/markdown"
 	"github.com/angyedz/Waycord/internal/ui/mock"
 	"github.com/angyedz/Waycord/internal/ui/theme"
 )
 
 // App contains UI state only. Future protocol/media services stay outside it.
 type App struct {
-	palette                               theme.Palette
-	theme                                 *material.Theme
-	serverButtons                         [4]widget.Clickable
-	channelButtons                        [4]widget.Clickable
-	chatButton, updatesButton, sendButton widget.Clickable
-	channelOptions                        [3]widget.Clickable
-	activeChannel                         int
-	activeServer                          int
-	updatesView                           bool
-	updateChannel                         int
-	messageList                           layout.List
-	composer                              widget.Editor
-	messages                              []mock.Message
+	palette                                     theme.Palette
+	theme                                       *material.Theme
+	messageMarkdown                             *uiMarkdown.Cache
+	channelButtons                              [][]widget.Clickable
+	chatButton, updatesButton, sendButton       widget.Clickable
+	searchButton, searchCloseButton             widget.Clickable
+	pinnedButton                                widget.Clickable
+	updateCheckButton, updateAutoButton         widget.Clickable
+	updateOpenButton, updateInstallButton       widget.Clickable
+	updateRestartButton                         widget.Clickable
+	updateChannelButtons                        [3]widget.Clickable
+	settingsSections                            [5]widget.Clickable
+	themeButtons                                [3]widget.Clickable
+	compactButton                               widget.Clickable
+	reduceMotionButton                          widget.Clickable
+	settingsSection                             int
+	compactMessages                             bool
+	reduceMotion                                bool
+	themeName                                   string
+	settingsStatus                              string
+	saveUIPreferences                           func(string, bool, bool) error
+	directButton, contactButton                 widget.Clickable
+	serverButtons                               []widget.Clickable
+	serverFeatureButtons                        [][]widget.Clickable
+	serverFeatureIcons                          [serverFeatureCount]*widget.Icon
+	guideStepButtons                            [][]widget.Clickable
+	eventInterestButtons                        [][]widget.Clickable
+	activeServerFeature                         int
+	guideCompleted                              map[string]bool
+	eventInterested                             map[string]bool
+	categoryButtons                             map[string]*widget.Clickable
+	collapsedCategories                         map[string]bool
+	categoryTransitions                         map[string]*panelTransition
+	sidebarButton, profileButton                widget.Clickable
+	membersButton                               widget.Clickable
+	voiceJoin, voiceLeave                       widget.Clickable
+	voiceMute, voiceDeafen                      widget.Clickable
+	voiceCamera, voiceScreen                    widget.Clickable
+	voice                                       voicepreview.State
+	voicePanelSlide                             panelTransition
+	selfProfileButton, selfProfileBackdrop      widget.Clickable
+	selfStatusButtons                           [4]widget.Clickable
+	selfProfileEditButton                       widget.Clickable
+	selfProfileSaveButton                       widget.Clickable
+	selfProfileCancelButton                     widget.Clickable
+	selfProfileNameEditor                       widget.Editor
+	selfProfileStatusEditor                     widget.Editor
+	replyCancelButton, editCancelButton         widget.Clickable
+	contextEdit, contextDelete                  widget.Clickable
+	deleteConfirm, deleteCancel                 widget.Clickable
+	deleteBackdrop                              widget.Clickable
+	deleteDialogOpen                            bool
+	deleteTarget                                int
+	editTarget                                  int
+	editDraftKey                                string
+	selfProfileOpen                             bool
+	selfProfileEditing                          bool
+	selfProfileSlide                            panelTransition
+	selfPresence                                int
+	selfProfileName                             string
+	selfProfileUsername                         string
+	selfProfileStatus                           string
+	saveLocalProfile                            func(string, string, int) error
+	selfProfileError                            string
+	selfAvatar                                  image.Image
+	selfAvatarOp                                paint.ImageOp
+	selfAvatarButton                            widget.Clickable
+	chooseSelfAvatar                            func() (*attachments.Attachment, error)
+	saveSelfAvatar                              func([]byte) error
+	selfAvatarResults                           chan selfAvatarResult
+	selfAvatarBusy                              bool
+	selfAvatarError                             string
+	voiceServer, voiceChannel                   string
+	micIcon, micOffIcon, headsetIcon            *widget.Icon
+	videoIcon, videoOffIcon                     *widget.Icon
+	screenIcon, screenOffIcon, hangupIcon       *widget.Icon
+	sidebar                                     sidebarState
+	menuIcon                                    *widget.Icon
+	sendIcon                                    *widget.Icon
+	settingsIcon                                *widget.Icon
+	searchIcon, pinnedIcon, closeIcon           *widget.Icon
+	categoryExpandedIcon, categoryCollapsedIcon *widget.Icon
+	replyIcon                                   *widget.Icon
+	moreIcon                                    *widget.Icon
+	attachIcon                                  *widget.Icon
+	attachButton, removeAttachmentButton        widget.Clickable
+	attachmentDrafts                            map[string]*attachments.Attachment
+	attachmentResults                           chan attachmentResult
+	chooseAttachment                            func() (*attachments.Attachment, error)
+	attachmentBusy                              bool
+	attachmentError                             string
+	attachmentPreviews                          attachmentPreviewCache
+	membersIcon                                 *widget.Icon
+	interactions                                map[*widget.Clickable]*interactionState
+	emojiIcon                                   *widget.Icon
+	emojiButton                                 widget.Clickable
+	gifButton, stickerButton                    widget.Clickable
+	mediaTabButtons                             [3]widget.Clickable
+	mediaChoiceButtons                          []widget.Clickable
+	mediaPickerTab                              int
+	emojiPickerChoices                          []widget.Clickable
+	emojiOpen                                   bool
+	emojiSlide                                  panelTransition
+	emojiPickerHeight                           panelTransition
+	searchOpen                                  bool
+	pinsOnly                                    bool
+	searchEditor                                widget.Editor
+	searchSlide                                 panelTransition
+	sendHover                                   float32
+	sendHoverTime                               time.Time
+	activeChannel                               int
+	activeServer                                int
+	serverChannels                              []int
+	composerDrafts                              map[string]string
+	updatesView                                 bool
+	updateChannel                               string
+	updateAutoCheck                             bool
+	updateChecking                              bool
+	updateStatus                                string
+	updateCheckID                               uint64
+	updateResult                                chan updateCheckResult
+	updateProgress                              chan updateInstallProgress
+	updateInstallResult                         chan updateInstallResult
+	updateSignals                               chan struct{}
+	updateChecker                               interface {
+		Check(context.Context, string, string, string, string, ed25519.PublicKey) (ota.Update, error)
+	}
+	saveUpdatePreferences                      func(string, bool) error
+	updateCtx                                  context.Context
+	updateInvalidate                           func()
+	updateInstaller                            func(context.Context, ota.Update, string, ed25519.PublicKey, ota.ProgressFunc) error
+	restartUpdatedApp                          func() error
+	updateInstalling                           bool
+	updateDownloaded, updateTotal              int64
+	updateStaged                               bool
+	availableUpdate                            *ota.Update
+	direct                                     bool
+	profileOpen                                bool
+	profileSlide                               panelTransition
+	membersOpen                                bool
+	membersSlide                               panelTransition
+	contentKey                                 string
+	contentSlide                               panelTransition
+	messageList                                layout.List
+	updateList                                 layout.List
+	serverChannelList                          layout.List
+	memberList                                 layout.List
+	composer                                   widget.Editor
+	messages                                   []mock.Message
+	visibleMessageIndices                      []int
+	reactions                                  reactions.Store
+	reactionWidgets                            map[int]*reactionWidget
+	reactionTarget                             int
+	contextTarget                              int
+	contextShown                               int
+	replyTarget                                int
+	contextPosition                            image.Point
+	contextSlide                               panelTransition
+	contextBackdrop, contextCopy, contextReact widget.Clickable
+	contextReply                               widget.Clickable
+	contextPin                                 widget.Clickable
 }
 
 func New() *App {
-	a := &App{palette: theme.Dark, activeChannel: 1, messageList: layout.List{Axis: layout.Vertical, ScrollToEnd: true}}
+	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, contextShown: -1, replyTarget: -1, activeServerFeature: serverFeatureNone, palette: theme.Dark, themeName: "dark", activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}, updateChannel: "stable", updateResult: make(chan updateCheckResult, 1), updateProgress: make(chan updateInstallProgress, 1), updateInstallResult: make(chan updateInstallResult, 1), updateSignals: make(chan struct{}, 1), updateChecker: ota.GitHubSource{Owner: "angyedz", Repository: "Waycord"}, updateCtx: context.Background(), selfProfileName: "angyedz", selfProfileUsername: "angyedz", selfProfileStatus: "On a break", selfAvatarResults: make(chan selfAvatarResult, 1)}
+	a.editTarget, a.deleteTarget = -1, -1
+	a.selfPresence = 3
 	a.theme = material.NewTheme()
+	if shaper, err := theme.NewShaper(); err == nil {
+		a.theme.Shaper = shaper
+		a.theme.Face = font.Typeface(theme.TextFamilies)
+	}
+	a.menuIcon, _ = widget.NewIcon(icons.NavigationMenu)
+	a.sendIcon, _ = widget.NewIcon(icons.ContentSend)
+	a.settingsIcon, _ = widget.NewIcon(icons.ActionSettings)
+	a.searchIcon, _ = widget.NewIcon(icons.ActionSearch)
+	a.categoryExpandedIcon, _ = widget.NewIcon(icons.NavigationExpandMore)
+	a.categoryCollapsedIcon, _ = widget.NewIcon(icons.NavigationChevronRight)
+	a.pinnedIcon, _ = widget.NewIcon(icons.ActionLabel)
+	a.closeIcon, _ = widget.NewIcon(icons.NavigationClose)
+	a.attachIcon, _ = widget.NewIcon(icons.ContentAddCircleOutline)
+	a.attachmentDrafts = make(map[string]*attachments.Attachment)
+	a.serverButtons = make([]widget.Clickable, len(mock.Servers))
+	a.serverFeatureButtons = make([][]widget.Clickable, len(mock.Servers))
+	a.guideStepButtons = make([][]widget.Clickable, len(mock.Servers))
+	a.eventInterestButtons = make([][]widget.Clickable, len(mock.Servers))
+	a.guideCompleted = make(map[string]bool)
+	a.eventInterested = make(map[string]bool)
+	for feature, source := range serverFeatureIconData {
+		a.serverFeatureIcons[feature], _ = widget.NewIcon(source)
+	}
+	a.serverChannels = make([]int, len(mock.Servers))
+	a.channelButtons = make([][]widget.Clickable, len(mock.Servers))
+	for i, server := range mock.Servers {
+		a.channelButtons[i] = make([]widget.Clickable, len(server.Channels))
+		a.serverFeatureButtons[i] = make([]widget.Clickable, serverFeatureCount)
+		if server.Guide != nil {
+			a.guideStepButtons[i] = make([]widget.Clickable, len(server.Guide.Steps))
+		}
+		a.eventInterestButtons[i] = make([]widget.Clickable, len(server.Events))
+	}
+	a.categoryButtons = make(map[string]*widget.Clickable)
+	a.collapsedCategories = make(map[string]bool)
+	a.categoryTransitions = make(map[string]*panelTransition)
+	a.composerDrafts = make(map[string]string)
+	a.serverChannels[0] = a.activeChannel
+	a.attachmentResults = make(chan attachmentResult, 1)
+	a.mediaChoiceButtons = make([]widget.Clickable, len(gifOptions)+len(stickerOptions))
+	a.emojiPickerChoices = make([]widget.Clickable, len(emojiPickerOptions))
+	a.replyIcon, _ = widget.NewIcon(icons.ContentReply)
+	a.moreIcon, _ = widget.NewIcon(icons.NavigationMoreHoriz)
+	a.membersIcon, _ = widget.NewIcon(icons.SocialPeople)
+	a.micIcon, _ = widget.NewIcon(icons.AVMic)
+	a.micOffIcon, _ = widget.NewIcon(icons.AVMicOff)
+	a.headsetIcon, _ = widget.NewIcon(icons.HardwareHeadset)
+	a.videoIcon, _ = widget.NewIcon(icons.AVVideocam)
+	a.videoOffIcon, _ = widget.NewIcon(icons.AVVideocamOff)
+	a.screenIcon, _ = widget.NewIcon(icons.CommunicationScreenShare)
+	a.screenOffIcon, _ = widget.NewIcon(icons.CommunicationStopScreenShare)
+	a.hangupIcon, _ = widget.NewIcon(icons.CommunicationCallEnd)
+	a.emojiIcon, _ = widget.NewIcon(icons.SocialSentimentSatisfied)
 	a.theme.Palette = material.Palette{Bg: a.palette.Canvas, Fg: a.palette.Text, ContrastBg: a.palette.Accent, ContrastFg: a.palette.Rail}
+	a.messageMarkdown = uiMarkdown.NewCache(uiMarkdown.New(theme.TextFamilies, a.palette.Muted, a.palette.Accent), 64)
 	a.composer.SingleLine = true
 	a.composer.Submit = true
 	a.composer.MaxLen = 2000
+	a.searchEditor.SingleLine = true
+	a.searchEditor.Submit = true
+	a.searchEditor.MaxLen = 128
+	a.selfProfileNameEditor.SingleLine = true
+	a.selfProfileNameEditor.MaxLen = 32
+	a.selfProfileNameEditor.SetText(a.selfProfileName)
+	a.selfProfileStatusEditor.SingleLine = true
+	a.selfProfileStatusEditor.MaxLen = 80
+	a.selfProfileStatusEditor.SetText(a.selfProfileStatus)
 	a.messages = append([]mock.Message(nil), mock.Messages...)
 	return a
 }
 
 func (a *App) process(gtx layout.Context) {
-	for i := range a.serverButtons {
-		if a.serverButtons[i].Clicked(gtx) {
-			a.activeServer = i
+	a.processAttachmentResults()
+	a.processSelfAvatarResult()
+	a.processUpdateChecks()
+	a.processContextMenu(gtx)
+	if a.processDeleteConfirmation(gtx) {
+		return
+	}
+	a.processSearch(gtx)
+	a.processMediaPicker(gtx)
+	a.processReactions(gtx)
+	if a.emojiButton.Clicked(gtx) {
+		a.openMediaPicker(0)
+	}
+	if a.gifButton.Clicked(gtx) {
+		a.openMediaPicker(1)
+	}
+	if a.stickerButton.Clicked(gtx) {
+		a.openMediaPicker(2)
+	}
+	for i := range a.mediaTabButtons {
+		if a.mediaTabButtons[i].Clicked(gtx) {
+			a.mediaPickerTab = i
 		}
 	}
-	for i := range a.channelButtons {
-		if a.channelButtons[i].Clicked(gtx) {
-			a.activeChannel = i
-			a.updatesView = false
-			a.messageList.Position = layout.Position{}
+	for i := range a.emojiPickerChoices {
+		if a.emojiPickerChoices[i].Clicked(gtx) {
+			a.composer.Insert(emojiPickerOptions[i])
+			a.emojiOpen = false
+			gtx.Execute(key.FocusCmd{Tag: &a.composer})
+		}
+	}
+	for i := range a.mediaChoiceButtons {
+		if a.mediaChoiceButtons[i].Clicked(gtx) {
+			if i < len(gifOptions) {
+				a.sendMediaPreview(gifOptions[i])
+			} else {
+				a.sendMediaPreview(stickerOptions[i-len(gifOptions)])
+			}
+		}
+	}
+	if a.sidebarButton.Clicked(gtx) {
+		a.sidebar.toggle()
+	}
+	if a.profileButton.Clicked(gtx) {
+		a.profileOpen = !a.profileOpen
+	}
+	if a.membersButton.Clicked(gtx) {
+		a.membersOpen = !a.membersOpen
+	}
+	if a.voiceJoin.Clicked(gtx) {
+		server := mock.Servers[a.activeServer]
+		if a.voice.Connected && (a.voiceServer != server.Name || a.voiceChannel != server.VoiceChannel) {
+			a.voice.Leave()
+		}
+		a.voiceServer, a.voiceChannel = server.Name, server.VoiceChannel
+		a.voice.Join()
+	}
+	if a.voiceLeave.Clicked(gtx) {
+		a.voice.Leave()
+	}
+	if a.voiceMute.Clicked(gtx) {
+		a.voice.ToggleMute()
+	}
+	if a.voiceDeafen.Clicked(gtx) {
+		a.voice.ToggleDeafen()
+	}
+	if a.voiceCamera.Clicked(gtx) {
+		a.voice.ToggleCamera()
+	}
+	if a.voiceScreen.Clicked(gtx) {
+		a.voice.ToggleScreen()
+	}
+	a.processSelfProfile(gtx)
+	if a.attachButton.Clicked(gtx) {
+		a.beginAttachmentSelection()
+	}
+	if a.removeAttachmentButton.Clicked(gtx) {
+		delete(a.attachmentDrafts, a.conversationKey())
+		a.attachmentError = ""
+	}
+	if a.replyCancelButton.Clicked(gtx) {
+		a.replyTarget = -1
+	}
+	if a.editCancelButton.Clicked(gtx) {
+		a.cancelEdit()
+	}
+	a.sidebar.update(gtx)
+	if a.directButton.Clicked(gtx) || a.contactButton.Clicked(gtx) {
+		a.contextTarget = -1
+		a.reactionTarget = -1
+		a.switchConversation(true, a.activeServer, a.activeChannel)
+		a.messageList.Position = layout.Position{}
+		a.messageList.ScrollToEnd = false
+	}
+	for i := range a.serverButtons {
+		if a.serverButtons[i].Clicked(gtx) {
+			changedServer := a.activeServer != i
+			a.switchConversation(false, i, a.serverChannels[i])
+			if changedServer {
+				a.serverChannelList.Position = layout.Position{}
+				a.memberList.Position = layout.Position{}
+			}
+		}
+	}
+	for server, channels := range a.channelButtons {
+		for channel := range channels {
+			if server == a.activeServer && channels[channel].Clicked(gtx) {
+				a.switchConversation(false, server, channel)
+			}
+		}
+	}
+	for key, button := range a.categoryButtons {
+		if button.Clicked(gtx) {
+			a.collapsedCategories[key] = !a.collapsedCategories[key]
+		}
+	}
+	for server, buttons := range a.serverFeatureButtons {
+		for feature := range buttons {
+			if server == a.activeServer && buttons[feature].Clicked(gtx) && serverHasFeature(mock.Servers[server], feature) {
+				a.activeServerFeature = feature
+				a.updatesView, a.membersOpen, a.emojiOpen = false, false, false
+				a.searchOpen, a.pinsOnly = false, false
+				a.searchEditor.SetText("")
+				a.contextTarget, a.reactionTarget = -1, -1
+			}
+		}
+	}
+	for server, buttons := range a.guideStepButtons {
+		for step := range buttons {
+			if server == a.activeServer && buttons[step].Clicked(gtx) {
+				a.toggleGuideStep(server, step)
+			}
+		}
+	}
+	for server, buttons := range a.eventInterestButtons {
+		for event := range buttons {
+			if server == a.activeServer && buttons[event].Clicked(gtx) {
+				a.toggleEventInterest(server, event)
+			}
 		}
 	}
 	if a.chatButton.Clicked(gtx) {
 		a.updatesView = false
+		a.activeServerFeature = serverFeatureNone
 	}
 	if a.updatesButton.Clicked(gtx) {
+		a.contextTarget = -1
 		a.updatesView = true
+		a.activeServerFeature = serverFeatureNone
+		a.searchOpen = false
+		a.searchEditor.SetText("")
+		a.pinsOnly = false
 	}
-	for i := range a.channelOptions {
-		if a.channelOptions[i].Clicked(gtx) {
-			a.updateChannel = i
+	for i := range a.settingsSections {
+		if a.settingsSections[i].Clicked(gtx) {
+			a.settingsSection = i
+		}
+	}
+	if a.compactButton.Clicked(gtx) {
+		a.setUIPreferences(a.themeName, !a.compactMessages, a.reduceMotion)
+	}
+	if a.reduceMotionButton.Clicked(gtx) {
+		a.setUIPreferences(a.themeName, a.compactMessages, !a.reduceMotion)
+	}
+	for i, name := range [...]string{"dark", "midnight", "light"} {
+		if a.themeButtons[i].Clicked(gtx) {
+			a.setUIPreferences(name, a.compactMessages, a.reduceMotion)
+		}
+	}
+	if a.updateCheckButton.Clicked(gtx) {
+		a.checkForUpdates()
+	}
+	if a.updateInstallButton.Clicked(gtx) {
+		a.installAvailableUpdate()
+	}
+	if a.updateRestartButton.Clicked(gtx) && a.updateStaged && a.restartUpdatedApp != nil {
+		if err := a.restartUpdatedApp(); err != nil {
+			a.updateStatus = "Couldn't restart Waycord. Close and reopen it to finish the update."
+		} else {
+			a.updateStatus = "Restarting Waycord…"
+		}
+	}
+	if a.updateAutoButton.Clicked(gtx) {
+		a.setUpdatePreferences(a.updateChannel, !a.updateAutoCheck)
+	}
+	for i, channel := range [...]string{"stable", "beta", "nightly"} {
+		if a.updateChannelButtons[i].Clicked(gtx) {
+			a.setUpdatePreferences(channel, a.updateAutoCheck)
+		}
+	}
+	if a.updateOpenButton.Clicked(gtx) && a.availableUpdate != nil {
+		if err := openReleasePage(a.availableUpdate.ReleaseURL); err != nil {
+			a.updateStatus = "Couldn't open release notes."
 		}
 	}
 	if a.sendButton.Clicked(gtx) && !a.updatesView {
 		a.sendPreview()
 	}
+	for {
+		event, ok := a.composer.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, ok := event.(widget.SubmitEvent); ok && !a.updatesView {
+			a.sendPreview()
+		}
+	}
 }
 func (a *App) sendPreview() {
 	body := strings.TrimSpace(a.composer.Text())
-	if body == "" {
+	key := a.conversationKey()
+	if a.editTarget >= 0 {
+		if body == "" {
+			return
+		}
+		if a.editTarget >= len(a.messages) || !coremessages.Edit(a.messages, a.editTarget, body) {
+			a.cancelEdit()
+			return
+		}
+		a.resetMessageTextState(a.editTarget)
+		a.cancelEdit()
+		a.scrollMessagesToLatest()
 		return
 	}
-	a.messages = append(a.messages, mock.Message{Channel: a.activeChannel, Author: "you (preview)", Time: "now", Body: body, Self: true})
+	attachment := a.attachmentDrafts[key]
+	if body == "" && attachment == nil {
+		return
+	}
+	now := time.Now()
+	message := mock.Message{Server: a.activeServer, Channel: a.activeChannel, Direct: a.direct, Author: a.selfProfileName, Time: now.Format("15:04"), SentAt: now, Body: body, Self: true, Attachment: attachment}
+	if a.replyTarget >= 0 && a.replyTarget < len(a.messages) {
+		replied := a.messages[a.replyTarget]
+		if replied.Direct == a.direct && (a.direct || (replied.Server == a.activeServer && replied.Channel == a.activeChannel)) {
+			message.HasReply, message.ReplyTo = true, a.replyTarget
+		}
+	}
+	a.messages = append(a.messages, message)
+	delete(a.attachmentDrafts, key)
 	a.composer.SetText("")
-	a.messageList.ScrollToEnd = true
+	a.replyTarget = -1
+	a.scrollMessagesToLatest()
+}
+
+func (a *App) sendMediaPreview(media mock.Media) {
+	if (media.Kind != mock.MediaGIF && media.Kind != mock.MediaSticker) || strings.TrimSpace(media.Name) == "" || media.Emoji == "" {
+		return
+	}
+	now := time.Now()
+	copy := media
+	a.messages = append(a.messages, mock.Message{
+		Server: a.activeServer, Channel: a.activeChannel, Direct: a.direct,
+		Author: a.selfProfileName, Time: now.Format("15:04"), SentAt: now,
+		Self: true, Media: &copy,
+	})
+	a.emojiOpen = false
+	a.scrollMessagesToLatest()
+}
+
+func (a *App) switchConversation(direct bool, server, channel int) {
+	if server < 0 || server >= len(mock.Servers) || channel < 0 || channel >= len(mock.Servers[server].Channels) {
+		return
+	}
+	if a.editTarget >= 0 {
+		a.cancelEdit()
+	}
+	a.composerDrafts[a.conversationKey()] = a.composer.Text()
+	a.direct, a.activeServer, a.activeChannel, a.updatesView = direct, server, channel, false
+	a.activeServerFeature = serverFeatureNone
+	if !direct {
+		a.serverChannels[server] = channel
+	}
+	a.composer.SetText(a.composerDrafts[a.conversationKey()])
+	a.contextTarget, a.contextShown, a.reactionTarget = -1, -1, -1
+	a.replyTarget = -1
+	a.emojiOpen = false
+	a.searchEditor.SetText("")
+	a.pinsOnly = false
+	a.messageList.Position = layout.Position{}
+	a.messageList.ScrollToEnd = false
 }
 
 func (a *App) Layout(gtx layout.Context) layout.Dimensions {
 	a.process(gtx)
-	return rounded(gtx, a.palette.Canvas, 0, func(gtx layout.Context) layout.Dimensions {
+	width := a.sidebar.animate(gtx, a.reduceMotion)
+	dims := rounded(gtx, a.palette.Canvas, 0, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-			layout.Rigid(fixedWidth(66, a.serverRail)),
-			layout.Rigid(fixedWidth(230, a.channelRail)),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Left: 8, Top: 8, Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return rounded(gtx, a.palette.Sidebar, 18, func(gtx layout.Context) layout.Dimensions {
+						return fixedWidth(52+width, func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+									return layout.Flex{}.Layout(gtx,
+										layout.Rigid(fixedWidth(52, a.serverRail)),
+										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+											if width < 1 {
+												return layout.Dimensions{}
+											}
+											return a.navigationDivider(gtx)
+										}),
+										layout.Rigid(fixedWidth(max(0, width-1), func(gtx layout.Context) layout.Dimensions {
+											if width < 120 {
+												return layout.Dimensions{Size: gtx.Constraints.Min}
+											}
+											return a.channelRail(gtx)
+										})),
+									)
+								}),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.voicePanel(gtx, width >= 120) }),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.userPanel(gtx, width >= 120) }),
+							)
+						})(gtx)
+					})
+				})
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if !a.sidebar.shown || width < 120 {
+					return layout.Dimensions{}
+				}
+				return a.sidebar.handle(gtx, a.palette.Border)
+			}),
 			layout.Flexed(1, a.workspace),
 		)
 	})
+	if a.contextTarget >= 0 {
+		gtx.Constraints = layout.Exact(dims.Size)
+		a.contextBackdrop.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Dimensions{Size: dims.Size}
+		})
+	}
+	profileProgress := a.transition(gtx, &a.selfProfileSlide, boolProgress(a.selfProfileOpen), 220*time.Millisecond)
+	if profileProgress > 0 {
+		a.selfProfileOverlay(gtx, dims.Size, profileProgress)
+	}
+	if a.deleteDialogOpen {
+		gtx.Constraints = layout.Exact(dims.Size)
+		a.deleteConfirmation(gtx, dims.Size)
+	}
+	return dims
 }
 
 func (a *App) serverRail(gtx layout.Context) layout.Dimensions {
-	return rounded(gtx, a.palette.Rail, 0, inset(9, func(gtx layout.Context) layout.Dimensions {
-		children := []layout.FlexChild{
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return rounded(gtx, a.palette.Accent, 15, inset(10, a.text("W", 21, a.palette.Rail)))
-			}), vspace(22),
-		}
-		for i, name := range mock.Servers {
-			i, name := i, name
+	return layout.Inset{Top: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		children := []layout.FlexChild{layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.railButton(gtx, &a.directButton, "@", a.direct) }), vspace(10)}
+		for i, server := range mock.Servers {
+			i, server := i, server
 			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				bg := a.palette.Surface
-				fg := a.palette.Muted
-				if i == a.activeServer {
-					bg = a.palette.AccentDim
-					fg = a.palette.Text
-				}
-				return a.serverButtons[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return rounded(gtx, bg, 14, inset(12, a.text(name, 17, fg)))
-				})
+				return a.railButton(gtx, &a.serverButtons[i], server.Icon, !a.direct && a.activeServer == i)
 			}), vspace(10))
 		}
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
-	}))
+		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx, children...)
+	})
 }
 
 func (a *App) channelRail(gtx layout.Context) layout.Dimensions {
-	return rounded(gtx, a.palette.Sidebar, 0, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return fixedHeight(70, inset(20, func(gtx layout.Context) layout.Dimensions {
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return fixedHeight(58, inset(14, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if a.direct {
+							return a.text("Messages", 18, a.palette.Text)(gtx)
+						}
+						return a.text(mock.Servers[a.activeServer].Name, 18, a.palette.Text)(gtx)
+					}),
+				)
+			}))(gtx)
+		}),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Left: 8, Right: 8, Top: 12}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				if a.direct {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-						layout.Rigid(a.text("WAYCORD", 15, a.palette.Text)),
-						vspace(4), layout.Rigid(a.text("PRIVATE PREVIEW", 10, a.palette.Subtle)),
+						layout.Rigid(inset(9, a.text("DIRECT MESSAGES", 11, a.palette.Subtle))),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return a.directContact(gtx, "mira", !a.updatesView)
+						}),
 					)
-				}))(gtx)
-			}),
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Left: 10, Right: 10, Top: 22}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					kids := []layout.FlexChild{
-						layout.Rigid(inset(9, a.text("TEXT CHANNELS", 11, a.palette.Subtle))), vspace(12),
-					}
-					for i, n := range mock.Channels {
-						i, n := i, n
-						kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return a.clickLabel(gtx, &a.channelButtons[i], "#  "+n, i == a.activeChannel && !a.updatesView)
-						}), vspace(4))
-					}
-					kids = append(kids, vspace(22), layout.Rigid(inset(9, a.text("VOICE CHANNELS", 11, a.palette.Subtle))), vspace(12), layout.Rigid(inset(12, a.text("◖  Lounge  ·  soon", 13, a.palette.Muted))))
-					return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
-				})
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return rounded(gtx, a.palette.Surface, 0, inset(14, func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-						layout.Rigid(a.text("●  Offline preview", 13, a.palette.Positive)),
-						vspace(3), layout.Rigid(a.text("No account connected", 11, a.palette.Muted)),
-					)
-				}))
-			}),
-		)
-	})
+				}
+				return a.serverChannelsLayout(gtx)
+			})
+		}),
+	)
 }
 
 func (a *App) workspace(gtx layout.Context) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(a.header),
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			if a.updatesView {
-				return a.updates(gtx)
-			}
-			return a.chat(gtx)
-		}),
+		layout.Flexed(1, a.animatedWorkspaceContent),
 	)
 }
+
+func (a *App) animatedWorkspaceContent(gtx layout.Context) layout.Dimensions {
+	key := a.conversationKey()
+	if a.direct {
+		key = "direct:mira"
+	}
+	if a.activeServerFeature >= 0 {
+		key += ":feature:" + serverFeatureNames[a.activeServerFeature]
+	}
+	if a.updatesView {
+		key = "settings:" + settingsNames[a.settingsSection]
+	}
+	if a.contentKey == "" {
+		a.contentKey = key
+		a.contentSlide.value, a.contentSlide.from, a.contentSlide.target = 1, 1, 1
+		a.contentSlide.started = gtx.Now
+	} else if a.contentKey != key {
+		a.contentKey = key
+		a.contentSlide.value, a.contentSlide.from, a.contentSlide.target = 0, 0, 0
+		a.contentSlide.started = time.Time{}
+	}
+	progress := a.transition(gtx, &a.contentSlide, 1, 200*time.Millisecond)
+	width := gtx.Dp(14)
+	shift := int(float32(width) * (1 - progress))
+	clipArea := clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops)
+	offset := op.Offset(image.Pt(shift, 0)).Push(gtx.Ops)
+	var child layout.Dimensions
+	if a.updatesView {
+		child = a.settings(gtx)
+	} else if a.activeServerFeature >= 0 {
+		child = a.serverFeatureScreen(gtx)
+	} else {
+		showProfile := a.direct && a.profileOpen && gtx.Constraints.Max.X >= gtx.Dp(730)
+		profileProgress := a.transition(gtx, &a.profileSlide, boolProgress(showProfile), 220*time.Millisecond)
+		if profileProgress > 0 && a.direct {
+			child = layout.Flex{}.Layout(gtx, layout.Flexed(1, a.chat), layout.Rigid(a.slidingProfile(profileProgress)))
+		} else if !a.direct {
+			membersProgress := a.transition(gtx, &a.membersSlide, boolProgress(a.membersOpen && gtx.Constraints.Max.X >= gtx.Dp(730)), 220*time.Millisecond)
+			if membersProgress > 0 {
+				child = layout.Flex{}.Layout(gtx, layout.Flexed(1, a.chat), layout.Rigid(a.slidingMembers(membersProgress)))
+			} else {
+				child = a.chat(gtx)
+			}
+		} else {
+			child = a.chat(gtx)
+		}
+	}
+	offset.Pop()
+	clipArea.Pop()
+	return child
+}
 func (a *App) header(gtx layout.Context) layout.Dimensions {
-	return rounded(gtx, a.palette.Canvas, 0, fixedHeight(70, func(gtx layout.Context) layout.Dimensions {
-		return layout.Inset{Left: 24, Right: 24, Top: 13, Bottom: 13}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					title := "# " + mock.Channels[a.activeChannel]
-					if a.updatesView {
-						title = "Settings / Updates"
-					}
-					return a.text(title, 19, a.palette.Text)(gtx)
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.pill(gtx, &a.chatButton, "Chat", !a.updatesView) }),
-				hspace(10),
+	wide := gtx.Constraints.Max.X >= gtx.Dp(730)
+	searchEnabled := !a.updatesView && a.activeServerFeature == serverFeatureNone
+	searchProgress := a.transition(gtx, &a.searchSlide, boolProgress(a.searchOpen && searchEnabled), 180*time.Millisecond)
+	return rounded(gtx, a.palette.Canvas, 0, fixedHeight(58, func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Left: 20, Right: 20, Top: 8, Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			children := []layout.FlexChild{
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return a.pill(gtx, &a.updatesButton, "Updates", a.updatesView)
+					return layout.Inset{Right: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return a.iconControl(gtx, &a.sidebarButton, a.menuIcon, 36, 20, "Toggle sidebar")
+					})
 				}),
-			)
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					if (a.searchOpen || searchProgress > 0) && searchEnabled {
+						return a.searchField(gtx, searchProgress)
+					}
+					title := "# " + mock.Servers[a.activeServer].Channels[a.activeChannel]
+					if a.direct {
+						title = "@ mira"
+					}
+					if a.updatesView {
+						title = "Settings / " + settingsNames[a.settingsSection]
+					} else if a.activeServerFeature >= 0 {
+						title = serverFeatureNames[a.activeServerFeature]
+					}
+					dimensions := layout.W.Layout(gtx, a.text(title, 19, a.palette.Text))
+					return dimensions
+				}),
+			}
+			if a.updatesView || a.activeServerFeature >= 0 {
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return a.pill(gtx, &a.chatButton, "Back", false)
+				}))
+			} else if (a.searchOpen || searchProgress > 0) && searchEnabled {
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return a.iconControl(gtx, &a.searchCloseButton, a.closeIcon, 36, 16, "Close search")
+				}))
+			} else {
+				if a.direct && wide {
+					children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return a.pill(gtx, &a.profileButton, "Profile", a.profileOpen)
+					}))
+				} else if !a.direct && wide {
+					children = append(children,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return a.iconToggle(gtx, &a.pinnedButton, a.pinnedIcon, 36, 18, "Toggle pinned messages", a.pinsOnly)
+						}),
+						hspace(4),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return a.iconControl(gtx, &a.membersButton, a.membersIcon, 36, 20, "Toggle members")
+						}),
+					)
+				}
+				children = append(children,
+					hspace(4),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return a.iconControl(gtx, &a.searchButton, a.searchIcon, 36, 18, "Search this channel")
+					}),
+				)
+			}
+			return layout.Flex{Alignment: layout.Middle}.Layout(gtx, children...)
 		})
 	}))
 }

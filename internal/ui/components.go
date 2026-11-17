@@ -27,6 +27,11 @@ func padding(p layout.Inset, child layout.Widget) layout.Widget {
 }
 func hspace(x unit.Dp) layout.FlexChild { return layout.Rigid(layout.Spacer{Width: x}.Layout) }
 func vspace(x unit.Dp) layout.FlexChild { return layout.Rigid(layout.Spacer{Height: x}.Layout) }
+func horizontalDivider(gtx layout.Context, col color.NRGBA) layout.Dimensions {
+	size := image.Pt(gtx.Constraints.Max.X, max(1, gtx.Dp(1)))
+	paint.FillShape(gtx.Ops, col, clip.Rect{Max: size}.Op())
+	return layout.Dimensions{Size: size}
+}
 func fixedWidth(x unit.Dp, child layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		w := gtx.Dp(x)
@@ -63,19 +68,27 @@ func (a *App) clickLabel(gtx layout.Context, b *widget.Clickable, title string, 
 		bg = a.palette.AccentDim
 		fg = a.palette.Text
 	}
+	bg = a.interactionColor(gtx, b, bg, a.palette.Surface2)
 	return b.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return rounded(gtx, bg, 10, inset(12, a.text(title, 14, fg)))
+		return rounded(gtx, bg, 18, padding(layout.Inset{Left: 14, Right: 14, Top: 9, Bottom: 9}, a.text(title, 14, fg)))
 	})
 }
 func (a *App) pill(gtx layout.Context, b *widget.Clickable, title string, active bool) layout.Dimensions {
+	// Parent minimums must not stretch a content-sized control to the header.
+	gtx.Constraints.Min = image.Point{}
 	bg := a.palette.Surface2
 	fg := a.palette.Muted
 	if active {
 		bg = a.palette.AccentDim
 		fg = a.palette.Text
 	}
+	hover := a.palette.AccentDim
+	if active {
+		hover = a.palette.Surface2
+	}
+	bg = a.interactionColor(gtx, b, bg, hover)
 	return b.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return rounded(gtx, bg, 10, func(gtx layout.Context) layout.Dimensions {
+		return rounded(gtx, bg, 20, func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: 8, Bottom: 8, Left: 14, Right: 14}.Layout(gtx, a.text(title, 13, fg))
 		})
 	})

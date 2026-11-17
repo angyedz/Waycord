@@ -61,6 +61,14 @@ func run(args []string) error {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
+		if args[0] == "install" {
+			p, err := store.CheckAndInstall(ctx, *manifestURL, *channel, ed25519.PublicKey(key))
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Staged %s; run 'waycord-updater launch' to verify and activate.\n", p.Version)
+			return nil
+		}
 		p, err := ota.FetchManifest(ctx, *manifestURL, ed25519.PublicKey(key))
 		if err != nil {
 			return err
@@ -85,14 +93,7 @@ func run(args []string) error {
 				return nil
 			}
 		}
-		if args[0] == "check" {
-			fmt.Printf("Available: %s (%s, %d bytes)\n", p.Version, p.Channel, p.Size)
-			return nil
-		}
-		if err = store.Install(ctx, p); err != nil {
-			return err
-		}
-		fmt.Printf("Staged %s; run 'waycord-updater launch' to verify and activate.\n", p.Version)
+		fmt.Printf("Available: %s (%s, %d bytes)\n", p.Version, p.Channel, p.Size)
 		return nil
 	default:
 		return fmt.Errorf("unknown subcommand %q", args[0])
