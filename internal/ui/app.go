@@ -180,5 +180,5 @@ func (a *App) header(gtx layout.Context) layout.Dimensions {
 				}),
 			)
 		})
-	}))(gtx)
+	}))
 }
