@@ -46,30 +46,48 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 			progress := a.transition(gtx, &a.emojiSlide, boolProgress(a.emojiOpen), 220*time.Millisecond)
 			return a.animatedEmojiPicker(gtx, progress)
 		}),
-		layout.Rigid(a.replyPreview),
+		layout.Rigid(a.composerContextPreview),
 		layout.Rigid(a.attachmentDraft),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: 8, Bottom: 14, Left: 20, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return rounded(gtx, a.palette.Surface, 24, padding(layout.Inset{Left: 18, Right: 6, Top: 5, Bottom: 5}, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if a.editTarget >= 0 {
+								return layout.Dimensions{}
+							}
 							return a.iconControl(gtx, &a.attachButton, a.attachIcon, 32, 20, "Attach file")
 						}),
 						hspace(6),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-							input := material.Editor(a.theme, &a.composer, "Write a message…")
+							hint := "Write a message…"
+							if a.editTarget >= 0 {
+								hint = "Edit your message…"
+							}
+							input := material.Editor(a.theme, &a.composer, hint)
 							input.TextSize = 14
 							input.Color = a.palette.Text
 							return input.Layout(gtx)
 						}),
 						hspace(8),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if a.editTarget >= 0 {
+								return layout.Dimensions{}
+							}
 							return a.mediaTextControl(gtx, &a.gifButton, 1, "GIF", "Choose a GIF")
 						}),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if a.editTarget >= 0 {
+								return layout.Dimensions{}
+							}
 							return a.mediaTextControl(gtx, &a.stickerButton, 2, "Sticker", "Choose a sticker")
 						}),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.emojiControl(gtx) }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if a.editTarget >= 0 {
+								return layout.Dimensions{}
+							}
+							return a.emojiControl(gtx)
+						}),
 						hspace(4),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return a.sendControl(gtx)
@@ -106,12 +124,13 @@ func (a *App) message(gtx layout.Context, index int, m mock.Message, grouped boo
 		}
 		position := a.contextPosition
 		position.X = max(0, min(position.X, dim.Size.X-gtx.Dp(190)))
-		position.Y = max(0, min(position.Y, dim.Size.Y-gtx.Dp(144)))
+		menuHeight := unit.Dp(a.contextMenuHeight())
+		position.Y = max(0, min(position.Y, dim.Size.Y-gtx.Dp(menuHeight)))
 		macro := op.Record(gtx.Ops)
 		offset := op.Offset(image.Pt(position.X, position.Y)).Push(gtx.Ops)
 		menuContext := gtx
-		menuContext.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(190), gtx.Dp(150))}
-		animatedReveal(menuContext, progress, 144, fixedHeight(144, a.contextMenu))
+		menuContext.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(190), gtx.Dp(menuHeight))}
+		animatedReveal(menuContext, progress, menuHeight, fixedHeight(menuHeight, a.contextMenu))
 		offset.Pop()
 		op.Defer(gtx.Ops, macro.Stop())
 	}
@@ -156,6 +175,12 @@ func (a *App) messageContentGrouped(gtx layout.Context, index int, m mock.Messag
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(a.text(m.Author, 14, a.palette.Text)), hspace(10),
 						layout.Rigid(a.text(m.Time, 11, a.palette.Subtle)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if !m.Edited {
+								return layout.Dimensions{}
+							}
+							return layout.Inset{Left: 6}.Layout(gtx, a.text("edited", 10, a.palette.Subtle))
+						}),
 					)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {

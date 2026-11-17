@@ -73,7 +73,14 @@ type App struct {
 	selfProfileCancelButton                widget.Clickable
 	selfProfileNameEditor                  widget.Editor
 	selfProfileStatusEditor                widget.Editor
-	replyCancelButton                      widget.Clickable
+	replyCancelButton, editCancelButton    widget.Clickable
+	contextEdit, contextDelete             widget.Clickable
+	deleteConfirm, deleteCancel            widget.Clickable
+	deleteBackdrop                         widget.Clickable
+	deleteDialogOpen                       bool
+	deleteTarget                           int
+	editTarget                             int
+	editDraftKey                           string
 	selfProfileOpen                        bool
 	selfProfileEditing                     bool
 	selfProfileSlide                       panelTransition
@@ -166,6 +173,7 @@ type App struct {
 
 func New() *App {
 	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, contextShown: -1, replyTarget: -1, activeServerFeature: serverFeatureNone, palette: theme.Dark, themeName: "dark", activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}, updateChannel: "stable", updateResult: make(chan updateCheckResult, 1), updateSignals: make(chan struct{}, 1), updateChecker: ota.GitHubSource{Owner: "angyedz", Repository: "Waycord"}, updateCtx: context.Background(), selfProfileName: "angyedz", selfProfileUsername: "angyedz", selfProfileStatus: "On a break"}
+	a.editTarget, a.deleteTarget = -1, -1
 	a.selfPresence = 3
 	a.theme = material.NewTheme()
 	if shaper, err := theme.NewShaper(); err == nil {
@@ -241,6 +249,9 @@ func (a *App) process(gtx layout.Context) {
 	a.processAttachmentResults()
 	a.processUpdateChecks()
 	a.processContextMenu(gtx)
+	if a.processDeleteConfirmation(gtx) {
+		return
+	}
 	a.processSearch(gtx)
 	a.processMediaPicker(gtx)
 	a.processReactions(gtx)
@@ -316,6 +327,9 @@ func (a *App) process(gtx layout.Context) {
 	}
 	if a.replyCancelButton.Clicked(gtx) {
 		a.replyTarget = -1
+	}
+	if a.editCancelButton.Clicked(gtx) {
+		a.cancelEdit()
 	}
 	a.sidebar.update(gtx)
 	if a.directButton.Clicked(gtx) || a.contactButton.Clicked(gtx) {
@@ -432,6 +446,20 @@ func (a *App) process(gtx layout.Context) {
 func (a *App) sendPreview() {
 	body := strings.TrimSpace(a.composer.Text())
 	key := a.conversationKey()
+	if a.editTarget >= 0 {
+		if body == "" {
+			return
+		}
+		if a.editTarget >= len(a.messages) || !canEditMessage(a.messages[a.editTarget]) {
+			a.cancelEdit()
+			return
+		}
+		a.messages[a.editTarget].Body = body
+		a.messages[a.editTarget].Edited = true
+		a.cancelEdit()
+		a.messageList.ScrollToEnd = true
+		return
+	}
 	attachment := a.attachmentDrafts[key]
 	if body == "" && attachment == nil {
 		return
@@ -470,6 +498,9 @@ func (a *App) switchConversation(direct bool, server, channel int) {
 	if server < 0 || server >= len(mock.Servers) || channel < 0 || channel >= len(mock.Servers[server].Channels) {
 		return
 	}
+	if a.editTarget >= 0 {
+		a.cancelEdit()
+	}
 	a.composerDrafts[a.conversationKey()] = a.composer.Text()
 	a.direct, a.activeServer, a.activeChannel, a.updatesView = direct, server, channel, false
 	a.activeServerFeature = serverFeatureNone
@@ -477,7 +508,7 @@ func (a *App) switchConversation(direct bool, server, channel int) {
 		a.serverChannels[server] = channel
 	}
 	a.composer.SetText(a.composerDrafts[a.conversationKey()])
-	a.contextTarget, a.reactionTarget = -1, -1
+	a.contextTarget, a.contextShown, a.reactionTarget = -1, -1, -1
 	a.replyTarget = -1
 	a.emojiOpen = false
 	a.searchEditor.SetText("")
@@ -538,6 +569,10 @@ func (a *App) Layout(gtx layout.Context) layout.Dimensions {
 	profileProgress := a.transition(gtx, &a.selfProfileSlide, boolProgress(a.selfProfileOpen), 220*time.Millisecond)
 	if profileProgress > 0 {
 		a.selfProfileOverlay(gtx, dims.Size, profileProgress)
+	}
+	if a.deleteDialogOpen {
+		gtx.Constraints = layout.Exact(dims.Size)
+		a.deleteConfirmation(gtx, dims.Size)
 	}
 	return dims
 }

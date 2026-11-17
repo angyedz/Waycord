@@ -30,7 +30,7 @@ Single source of truth: `internal/ui/theme/palette.go`.
 - **Direct messages:** their own navigation entry and contact list; a compact profile for the selected contact appears only in the direct conversation when there is room.
 - **Own profile:** clicking the user panel opens a floating card with local presence selection, editable display name and status; voice location appears only while connected. Name, status, and presence are saved with the other local UI preferences.
 - **Members:** the server member panel is optional and is only laid out while open.
-- **Message tools:** search filters the current conversation. Pins filter the current channel; pin, unpin, reply and copy actions are available from the message menu.
+- **Message tools:** search filters the current conversation. Pins filter the current channel; pin, unpin, reply and copy actions are available from the message menu. Own text messages can be edited in the composer; own message deletion requires confirmation and repairs local reply/reaction references.
 - **Emoji and media:** a bundled color font supplies a fallback on both desktop platforms. The composer opens a compact local emoji, GIF and sticker picker; selected samples appear in the active conversation.
 - **Reactions:** hovering over a message shows quick reactions and a local emoji picker; selecting an existing reaction again removes it. Hover state does not change row height.
 - **Settings:** Appearance offers dark, midnight and light themes plus compact messages; Performance can reduce motion; Audio controls microphone/deafen state; Video controls are only present in an active voice preview; Updates contains signed release discovery.

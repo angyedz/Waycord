@@ -9,10 +9,21 @@ import (
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/widget"
+
+	"github.com/angyedz/Waycord/internal/ui/mock"
 )
 
 func (a *App) processContextMenu(gtx layout.Context) {
+	if a.deleteDialogOpen {
+		return
+	}
 	if a.contextTarget >= 0 {
+		if a.contextEdit.Clicked(gtx) {
+			a.beginEdit(gtx, a.contextTarget)
+		}
+		if a.contextDelete.Clicked(gtx) {
+			a.requestDelete(a.contextTarget)
+		}
 		if a.contextPin.Clicked(gtx) {
 			if a.contextTarget < len(a.messages) {
 				a.messages[a.contextTarget].Pinned = !a.messages[a.contextTarget].Pinned
@@ -64,19 +75,58 @@ func (a *App) processContextMenu(gtx layout.Context) {
 
 func (a *App) contextMenu(gtx layout.Context) layout.Dimensions {
 	pinLabel := "Pin message"
-	if a.contextTarget >= 0 && a.contextTarget < len(a.messages) && a.messages[a.contextTarget].Pinned {
+	message := a.contextMessage()
+	if message != nil && message.Pinned {
 		pinLabel = "Remove pin"
 	}
 	return fixedWidth(190, func(gtx layout.Context) layout.Dimensions {
 		return rounded(gtx, a.palette.Surface2, 12, padding(layout.Inset{Left: 4, Right: 4, Top: 4, Bottom: 4}, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			children := []layout.FlexChild{
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.contextItem(gtx, &a.contextReply, "Reply") }),
+			}
+			if message != nil && canEditMessage(*message) {
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.contextItem(gtx, &a.contextEdit, "Edit message") }))
+			}
+			children = append(children,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.contextItem(gtx, &a.contextCopy, "Copy message") }),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.contextItem(gtx, &a.contextReact, "Add reaction") }),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.contextItem(gtx, &a.contextPin, pinLabel) }),
 			)
+			if message != nil && message.Self {
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return a.contextItem(gtx, &a.contextDelete, "Delete message")
+				}))
+			}
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		}))
 	})(gtx)
+}
+
+func (a *App) contextMessage() *mock.Message {
+	index := a.contextTarget
+	if index < 0 {
+		index = a.contextShown
+	}
+	if index < 0 || index >= len(a.messages) {
+		return nil
+	}
+	return &a.messages[index]
+}
+
+func canEditMessage(message mock.Message) bool {
+	return message.Self && strings.TrimSpace(message.Body) != "" && message.Attachment == nil && message.Media == nil
+}
+
+func (a *App) contextMenuHeight() int {
+	message := a.contextMessage()
+	height := 144
+	if message != nil && canEditMessage(*message) {
+		height += 36
+	}
+	if message != nil && message.Self {
+		height += 36
+	}
+	return height
 }
 
 func (a *App) contextItem(gtx layout.Context, button *widget.Clickable, title string) layout.Dimensions {

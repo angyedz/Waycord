@@ -19,6 +19,7 @@ type Message struct {
 	HasReply   bool
 	ReplyTo    int
 	Pinned     bool
+	Edited     bool
 	SentAt     time.Time
 	Attachment *attachments.Attachment
 	Media      *Media

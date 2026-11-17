@@ -2,13 +2,14 @@ package reactions
 
 import "testing"
 
-func TestToggleKeepsMessagesIndependent(t *testing.T) {
-	var s Store
-	s.Toggle(2, "👍")
-	s.Toggle(3, "👍")
-	s.Toggle(2, "🔥")
-	s.Toggle(2, "👍")
-	if s.Has(2, "👍") || !s.Has(3, "👍") || !s.Has(2, "🔥") {
-		t.Fatal("reactions were not isolated or toggled")
+func TestRemoveAndShiftKeepsReactionsBoundToMessages(t *testing.T) {
+	var store Store
+	store.Toggle(0, "❤️")
+	store.Toggle(1, "🔥")
+	store.Toggle(2, "✅")
+	store.Toggle(4, "😄")
+	store.RemoveAndShift(1)
+	if !store.Has(0, "❤️") || !store.Has(1, "✅") || !store.Has(3, "😄") || store.Has(1, "🔥") {
+		t.Fatal("removing a message failed to remove and shift its reaction state")
 	}
 }
