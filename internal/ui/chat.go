@@ -10,8 +10,8 @@ import (
 func (a *App) chat(gtx layout.Context) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{Top: 3, Left: 26, Right: 26, Bottom: 22}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return a.text("OFFLINE PREVIEW   /   Messages are temporary and local", 11, a.palette.Subtle)(gtx)
+			return layout.Inset{Top: 2, Left: 22, Right: 22, Bottom: 12}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return a.text("Preview · Offline", 11, a.palette.Subtle)(gtx)
 			})
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -21,18 +21,18 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 					visible = append(visible, m)
 				}
 			}
-			return layout.Inset{Left: 24, Right: 24}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Left: 20, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return a.messageList.Layout(gtx, len(visible), func(gtx layout.Context, i int) layout.Dimensions {
-					return layout.Inset{Bottom: 22}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return a.message(gtx, visible[i]) })
+					return layout.Inset{Bottom: 13}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return a.message(gtx, visible[i]) })
 				})
 			})
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{Top: 12, Bottom: 22, Left: 24, Right: 24}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Top: 8, Bottom: 14, Left: 20, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return rounded(gtx, a.palette.Surface, 24, padding(layout.Inset{Left: 20, Right: 8, Top: 7, Bottom: 7}, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-							input := material.Editor(a.theme, &a.composer, "Message in local preview…")
+							input := material.Editor(a.theme, &a.composer, "Write a message…")
 							input.TextSize = 14
 							input.Color = a.palette.Text
 							return input.Layout(gtx)

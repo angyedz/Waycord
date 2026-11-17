@@ -22,7 +22,7 @@ func main() {
 
 func run() error {
 	w := new(app.Window)
-	w.Option(app.Title("Waycord — Offline Design Preview"), app.Size(unit.Dp(1100), unit.Dp(740)), app.MinSize(unit.Dp(800), unit.Dp(540)))
+	w.Option(app.Title("Waycord — Preview"), app.Size(unit.Dp(1100), unit.Dp(740)), app.MinSize(unit.Dp(800), unit.Dp(540)))
 	view := ui.New()
 	var ops op.Ops
 	healthReported := false

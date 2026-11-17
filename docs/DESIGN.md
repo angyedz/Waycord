@@ -2,7 +2,7 @@
 
 ## Intent
 
-Dense without feeling cramped. Crisp typography, tonal dark surfaces, rounded controls and a restrained violet accent inspired by Material design. Message text sits directly on the canvas; rounded surfaces are reserved for controls and inputs. The optional community panel hides at narrow widths. Fast response and an interface that still looks intentional when its content is empty.
+Dense without feeling cramped. Crisp typography, tonal dark surfaces, rounded controls and a restrained violet accent inspired by Material design. Message text sits directly on the canvas; rounded surfaces are reserved for controls and inputs. Fast response and an interface that still looks intentional when its content is empty.
 
 ## Tokens
 
@@ -24,17 +24,17 @@ Single source of truth: `internal/ui/theme/palette.go`.
 
 ## Desktop layout (first iteration)
 
-- **Server rail:** 64dp, full window height, strong contrast with the rest.
-- **Channel rail:** 216dp, grouped text/voice channels; bottom connection-state section.
-- **Workspace:** flexible width, 70dp header, virtualized message list and message composer.
+- **Server rail:** 60dp, full window height, strong contrast with the rest.
+- **Channel rail:** 200dp, grouped text/voice channels; bottom connection-state section.
+- **Workspace:** flexible width, 58dp header, virtualized message list and message composer.
 - **Updates screen:** separate workspace route with channel picker and explicit explanation of signed OTA steps.
 - **Minimum window:** 800 × 540dp; responsive reflow below this size is future work.
 
 ## Interaction policies
 
 - Everything in the current build is labeled `offline preview` where appropriate. Clicking Send updates local fixture data only.
-- Server/channel controls work with preview state, without network traffic.
-- Update channel selectors change design-preview state only; they do not claim to check for actual releases.
+- Channel controls switch between local preview conversations.
+- The updates screen reports that checks are unavailable in the preview.
 - Actual OTA is through `waycord-updater` CLI until trusted signing setup and GUI integration exist.
 - Focus states, keyboard navigation, high DPI, accessibility, empty/loading/error views, and icons are the next design passes.
 
