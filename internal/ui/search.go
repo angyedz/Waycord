@@ -61,17 +61,33 @@ func (a *App) searchField(gtx layout.Context, progress float32) layout.Dimension
 	child := gtx
 	child.Constraints.Min.X, child.Constraints.Max.X = fullWidth, fullWidth
 	content := func(gtx layout.Context) layout.Dimensions {
-		return rounded(gtx, a.palette.Surface, 18, padding(layout.Inset{Left: 12, Right: 12, Top: 5, Bottom: 5}, func(gtx layout.Context) layout.Dimensions {
-			input := material.Editor(a.theme, &a.searchEditor, "Search this channel…")
-			input.TextSize = 14
-			input.Color = a.palette.Text
-			return input.Layout(gtx)
-		}))
+		gtx.Constraints.Min.X = fullWidth
+		return fixedHeight(36, func(gtx layout.Context) layout.Dimensions {
+			return rounded(gtx, a.palette.Surface, 18, func(gtx layout.Context) layout.Dimensions {
+				input := material.Editor(a.theme, &a.searchEditor, "Search this channel…")
+				input.TextSize = 14
+				input.Color = a.palette.Text
+				return centeredSearchInput(gtx, input.Layout)
+			})
+		})(gtx)
 	}
-	content(child)
+	centeredSearchField(child, content)
 	offset.Pop()
 	area.Pop()
 	return layout.Dimensions{Size: image.Pt(visibleWidth, gtx.Constraints.Max.Y)}
+}
+
+func centeredSearchField(gtx layout.Context, content layout.Widget) layout.Dimensions {
+	width, height := gtx.Constraints.Max.X, gtx.Constraints.Max.Y
+	gtx.Constraints.Min = image.Pt(width, height)
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = width
+		return content(gtx)
+	})
+}
+
+func centeredSearchInput(gtx layout.Context, input layout.Widget) layout.Dimensions {
+	return layout.Center.Layout(gtx, input)
 }
 
 func (a *App) visibleMessages() []int {
