@@ -62,3 +62,14 @@ func TestPillDoesNotInheritContainerMinimumSize(t *testing.T) {
 		t.Fatalf("button inherited container size: %v", dims.Size)
 	}
 }
+
+func TestReactionChipRemainsCompact(t *testing.T) {
+	app := New()
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}, Constraints: layout.Constraints{Min: image.Pt(200, 80), Max: image.Pt(300, 100)}}
+	var button widget.Clickable
+	size := app.reactionChip(gtx, &button, "🔥").Size
+	if size.X > 60 || size.Y > 32 {
+		t.Fatalf("reaction is too large: %v", size)
+	}
+}

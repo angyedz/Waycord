@@ -57,6 +57,25 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 }
 
 func (a *App) message(gtx layout.Context, index int, m mock.Message) layout.Dimensions {
+	gtx.Constraints.Min.X = gtx.Constraints.Max.X
+	w := a.reactionWidget(index)
+	dim := layout.Stack{Alignment: layout.NE}.Layout(gtx,
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions { return a.messageContent(gtx, index, m) }),
+		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
+			if !w.hovered && a.reactionTarget != index {
+				return layout.Dimensions{Size: gtx.Constraints.Min}
+			}
+			return layout.NE.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X, gtx.Constraints.Min.Y = 0, 0
+				return a.reactionToolbar(gtx, index)
+			})
+		}),
+	)
+	a.messageHover(gtx, index, dim.Size)
+	return dim
+}
+
+func (a *App) messageContent(gtx layout.Context, index int, m mock.Message) layout.Dimensions {
 	return layout.Flex{Alignment: layout.Start}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			avatar := a.palette.Surface2
@@ -76,7 +95,6 @@ func (a *App) message(gtx layout.Context, index int, m mock.Message) layout.Dime
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(a.text(m.Author, 14, a.palette.Text)), hspace(10),
 						layout.Rigid(a.text(m.Time, 11, a.palette.Subtle)),
-						hspace(8), layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.reactionAdd(gtx, index) }),
 					)
 				}),
 				vspace(4),
