@@ -13,6 +13,12 @@ import (
 
 func (a *App) processContextMenu(gtx layout.Context) {
 	if a.contextTarget >= 0 {
+		if a.contextPin.Clicked(gtx) {
+			if a.contextTarget < len(a.messages) {
+				a.messages[a.contextTarget].Pinned = !a.messages[a.contextTarget].Pinned
+			}
+			a.contextTarget = -1
+		}
 		if a.contextCopy.Clicked(gtx) {
 			if a.contextTarget < len(a.messages) {
 				gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(a.messages[a.contextTarget].Body))})
@@ -22,6 +28,9 @@ func (a *App) processContextMenu(gtx layout.Context) {
 		if a.contextReact.Clicked(gtx) {
 			a.reactionTarget = a.contextTarget
 			a.contextTarget = -1
+		}
+		if a.contextReply.Clicked(gtx) {
+			a.beginReply(gtx, a.contextTarget)
 		}
 		if a.contextBackdrop.Clicked(gtx) {
 			a.contextTarget = -1
@@ -54,11 +63,17 @@ func (a *App) processContextMenu(gtx layout.Context) {
 }
 
 func (a *App) contextMenu(gtx layout.Context) layout.Dimensions {
+	pinLabel := "Pin message"
+	if a.contextTarget >= 0 && a.contextTarget < len(a.messages) && a.messages[a.contextTarget].Pinned {
+		pinLabel = "Remove pin"
+	}
 	return fixedWidth(190, func(gtx layout.Context) layout.Dimensions {
 		return rounded(gtx, a.palette.Surface2, 12, padding(layout.Inset{Left: 4, Right: 4, Top: 4, Bottom: 4}, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.contextItem(gtx, &a.contextReply, "Reply") }),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.contextItem(gtx, &a.contextCopy, "Copy message") }),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.contextItem(gtx, &a.contextReact, "Add reaction") }),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.contextItem(gtx, &a.contextPin, pinLabel) }),
 			)
 		}))
 	})(gtx)

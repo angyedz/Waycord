@@ -48,7 +48,7 @@ func (a *App) conversationKey() string {
 	if a.direct {
 		return "direct:mira"
 	}
-	return "server:" + strconv.Itoa(a.activeChannel)
+	return "server:" + strconv.Itoa(a.activeServer) + ":" + strconv.Itoa(a.activeChannel)
 }
 
 func (a *App) beginAttachmentSelection() {

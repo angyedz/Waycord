@@ -49,6 +49,7 @@ func TestMessagesGroupOnlySameAuthorConversationAndMinute(t *testing.T) {
 	for name, change := range map[string]func(*mock.Message){
 		"author":       func(m *mock.Message) { m.Author = "other" },
 		"channel":      func(m *mock.Message) { m.Channel++ },
+		"server":       func(m *mock.Message) { m.Server++ },
 		"direct":       func(m *mock.Message) { m.Direct = true },
 		"minute":       func(m *mock.Message) { m.SentAt = stamp.Add(time.Minute) },
 		"day":          func(m *mock.Message) { m.SentAt = stamp.Add(24 * time.Hour) },
@@ -59,6 +60,61 @@ func TestMessagesGroupOnlySameAuthorConversationAndMinute(t *testing.T) {
 		if messagesGroup(a, candidate) {
 			t.Errorf("messages grouped across %s", name)
 		}
+	}
+}
+
+func TestSwitchConversationKeepsDraftsAndServerChannel(t *testing.T) {
+	app := New()
+	app.composer.SetText("first server draft")
+	app.switchConversation(false, 1, 2)
+	if app.activeServer != 1 || app.activeChannel != 2 || app.composer.Text() != "" {
+		t.Fatal("server switch did not select the requested conversation")
+	}
+	app.composer.SetText("second server draft")
+	app.switchConversation(true, 1, 2)
+	app.composer.SetText("private draft")
+	app.switchConversation(false, 0, 1)
+	if app.composer.Text() != "first server draft" || app.serverChannels[1] != 2 {
+		t.Fatal("server draft or selected channel was not restored")
+	}
+	app.switchConversation(false, 1, app.serverChannels[1])
+	if app.composer.Text() != "second server draft" {
+		t.Fatal("second server draft was not restored")
+	}
+	app.switchConversation(true, 1, 2)
+	if app.composer.Text() != "private draft" {
+		t.Fatal("direct conversation draft was not restored")
+	}
+}
+
+func TestReplyIsAttachedToSentMessageAndClearedOnSwitch(t *testing.T) {
+	app := New()
+	app.replyTarget = 2
+	app.composer.SetText("Thanks, I will take a look.")
+	app.sendPreview()
+	last := app.messages[len(app.messages)-1]
+	if !last.HasReply || last.ReplyTo != 2 || app.replyTarget != -1 {
+		t.Fatalf("reply was not sent with its target: %+v, pending=%d", last, app.replyTarget)
+	}
+	app.replyTarget = 2
+	app.switchConversation(false, 1, 1)
+	if app.replyTarget != -1 {
+		t.Fatal("switching conversations left a stale reply target")
+	}
+}
+
+func TestReplyPreviewAndQuotedMessageLayout(t *testing.T) {
+	app := New()
+	app.replyTarget = 2
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}, Constraints: layout.Constraints{Max: image.Pt(600, 120)}}
+	if dims := app.replyPreview(gtx); dims.Size.Y == 0 {
+		t.Fatal("reply preview was not laid out")
+	}
+	quoted := mock.Message{HasReply: true, ReplyTo: 2, Author: "You", Body: "A reply"}
+	ops.Reset()
+	if dims := app.messageReply(gtx, len(app.messages), quoted); dims.Size.Y == 0 {
+		t.Fatal("quoted message was not laid out")
 	}
 }
 

@@ -16,18 +16,22 @@ func (a *App) sendControl(gtx layout.Context) layout.Dimensions {
 	} else if a.sendButton.Hovered() {
 		target = 0.6
 	}
-	if a.sendHoverTime.IsZero() || gtx.Now.Before(a.sendHoverTime) {
-		a.sendHoverTime = gtx.Now
-	}
-	elapsed := min(float32(gtx.Now.Sub(a.sendHoverTime).Seconds()), 0.05)
-	a.sendHoverTime = gtx.Now
-	diff := target - a.sendHover
-	step := elapsed * 8
-	if float32(math.Abs(float64(diff))) <= step || diff == 0 {
+	if a.reduceMotion {
 		a.sendHover = target
 	} else {
-		a.sendHover += float32(math.Copysign(float64(step), float64(diff)))
-		gtx.Execute(op.InvalidateCmd{})
+		if a.sendHoverTime.IsZero() || gtx.Now.Before(a.sendHoverTime) {
+			a.sendHoverTime = gtx.Now
+		}
+		elapsed := min(float32(gtx.Now.Sub(a.sendHoverTime).Seconds()), 0.05)
+		a.sendHoverTime = gtx.Now
+		diff := target - a.sendHover
+		step := elapsed * 8
+		if float32(math.Abs(float64(diff))) <= step || diff == 0 {
+			a.sendHover = target
+		} else {
+			a.sendHover += float32(math.Copysign(float64(step), float64(diff)))
+			gtx.Execute(op.InvalidateCmd{})
+		}
 	}
 	mix := func(x, y uint8) uint8 { return uint8(float32(x) + (float32(y)-float32(x))*a.sendHover) }
 	from, to := a.palette.AccentDim, a.palette.Accent

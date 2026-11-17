@@ -30,7 +30,7 @@ func main() {
 
 func run() error {
 	w := new(app.Window)
-	w.Option(app.Title("Waycord — Preview"), app.Size(unit.Dp(1100), unit.Dp(740)), app.MinSize(unit.Dp(800), unit.Dp(540)))
+	w.Option(app.Title("Waycord"), app.Size(unit.Dp(1100), unit.Dp(740)), app.MinSize(unit.Dp(800), unit.Dp(540)))
 	view := ui.New()
 	chooser := explorer.NewExplorer(w)
 	view.ConfigureAttachments(func() (*attachments.Attachment, error) {
@@ -55,10 +55,19 @@ func run() error {
 		preferences, loadErr := store.Load()
 		if loadErr != nil {
 			log.Print("Waycord update preferences: ", loadErr)
-			preferences = storage.UpdatePreferences{Channel: "stable"}
+			preferences = storage.UpdatePreferences{Channel: "stable", AutoCheck: true}
 		}
 		view.ConfigureUpdatePreferences(preferences.Channel, preferences.AutoCheck, func(channel string, autoCheck bool) error {
 			return store.Save(storage.UpdatePreferences{Channel: channel, AutoCheck: autoCheck})
+		})
+		uiStore := storage.UIPreferencesStore{Root: filepath.Join(configDir, "waycord")}
+		uiPreferences, uiLoadErr := uiStore.Load()
+		if uiLoadErr != nil {
+			log.Print("Waycord appearance preferences: ", uiLoadErr)
+			uiPreferences = storage.UIPreferences{Theme: "dark"}
+		}
+		view.ConfigureUIPreferences(uiPreferences.Theme, uiPreferences.CompactMessages, uiPreferences.ReduceMotion, func(theme string, compactMessages, reduceMotion bool) error {
+			return uiStore.Save(storage.UIPreferences{Theme: theme, CompactMessages: compactMessages, ReduceMotion: reduceMotion})
 		})
 	}
 	updateCtx, stopUpdateChecks := context.WithCancel(context.Background())

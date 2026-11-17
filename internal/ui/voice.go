@@ -1,11 +1,18 @@
 package ui
 
-import "gioui.org/layout"
+import (
+	"time"
+
+	"gioui.org/layout"
+	"gioui.org/unit"
+)
 
 func (a *App) voicePanel(gtx layout.Context, expanded bool) layout.Dimensions {
-	if !a.voice.Connected || !expanded {
-		return layout.Dimensions{}
-	}
+	progress := a.transition(gtx, &a.voicePanelSlide, boolProgress(a.voice.Connected && expanded), 220*time.Millisecond)
+	return animatedReveal(gtx, progress, unit.Dp(110), a.voicePanelContent)
+}
+
+func (a *App) voicePanelContent(gtx layout.Context) layout.Dimensions {
 	return layout.Inset{Left: 8, Right: 8, Bottom: 6}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return rounded(gtx, a.palette.Surface, 14, padding(layout.Inset{Left: 10, Right: 8, Top: 9, Bottom: 8}, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -13,8 +20,8 @@ func (a *App) voicePanel(gtx layout.Context, expanded bool) layout.Dimensions {
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-								layout.Rigid(a.text("Voice preview", 13, a.palette.Positive)),
-								layout.Rigid(a.text("Lounge", 11, a.palette.Muted)),
+								layout.Rigid(a.text("Voice connected", 13, a.palette.Positive)),
+								layout.Rigid(a.text(a.voiceChannel+" · "+a.voiceServer, 11, a.palette.Muted)),
 							)
 						}),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {

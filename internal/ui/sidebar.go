@@ -59,10 +59,16 @@ func (s *sidebarState) dragTo(position, pixelsPerDP float32) {
 	s.transition.started = time.Time{}
 }
 
-func (s *sidebarState) animate(gtx layout.Context) unit.Dp {
+func (s *sidebarState) animate(gtx layout.Context, reduceMotion bool) unit.Dp {
 	target := float32(0)
 	if s.shown {
 		target = s.width
+	}
+	if reduceMotion {
+		s.current = target
+		s.transition.value, s.transition.from, s.transition.target, s.transition.duration = target, target, target, 0
+		s.transition.started = gtx.Now
+		return unit.Dp(s.current)
 	}
 	s.current = s.transition.advanceTo(gtx.Now, target, 240*time.Millisecond)
 	if s.current != target {

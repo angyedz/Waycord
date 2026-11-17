@@ -2,12 +2,11 @@ package ui
 
 import (
 	"image"
-	"io"
-	"strings"
+	"time"
 
 	"gioui.org/gesture"
-	"gioui.org/io/clipboard"
 	"gioui.org/io/event"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
@@ -17,7 +16,8 @@ import (
 
 type reactionWidget struct {
 	add        widget.Clickable
-	copy       widget.Clickable
+	reply      widget.Clickable
+	more       widget.Clickable
 	body       widget.Selectable
 	contextTag int
 	hover      gesture.Hover
@@ -41,8 +41,13 @@ func (a *App) reactionWidget(index int) *reactionWidget {
 func (a *App) processReactions(gtx layout.Context) {
 	for index, w := range a.reactionWidgets {
 		w.hovered = w.hover.Update(gtx.Source)
-		if w.copy.Clicked(gtx) && index < len(a.messages) {
-			gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(a.messages[index].Body))})
+		if w.reply.Clicked(gtx) {
+			a.beginReply(gtx, index)
+		}
+		if w.more.Clicked(gtx) && index < len(a.messages) {
+			a.contextTarget, a.contextShown = index, index
+			a.contextPosition = image.Pt(gtx.Dp(8), gtx.Dp(4))
+			a.reactionTarget = -1
 		}
 		if w.add.Clicked(gtx) {
 			if a.reactionTarget == index {
@@ -92,10 +97,23 @@ func (a *App) reactionToolbar(gtx layout.Context, index int) layout.Dimensions {
 		}
 		buttons = append(buttons, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.reactionAdd(gtx, index) }))
 		buttons = append(buttons, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return a.iconControl(gtx, &w.copy, a.copyIcon, 28, 16, "Copy message")
+			return a.iconControl(gtx, &w.reply, a.replyIcon, 28, 16, "Reply")
+		}))
+		buttons = append(buttons, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return a.iconControl(gtx, &w.more, a.moreIcon, 28, 16, "More message actions")
 		}))
 		return layout.Flex{Alignment: layout.Middle}.Layout(gtx, buttons...)
 	}))
+}
+
+func (a *App) beginReply(gtx layout.Context, index int) {
+	if index < 0 || index >= len(a.messages) {
+		return
+	}
+	a.replyTarget = index
+	a.contextTarget = -1
+	a.reactionTarget = -1
+	gtx.Execute(key.FocusCmd{Tag: &a.composer})
 }
 
 func (a *App) reactionRow(gtx layout.Context, index int) layout.Dimensions {
@@ -107,7 +125,7 @@ func (a *App) reactionRow(gtx layout.Context, index int) layout.Dimensions {
 			break
 		}
 	}
-	progress := w.picker.layoutProgress(gtx, a.reactionTarget == index)
+	progress := a.transition(gtx, &w.picker, boolProgress(a.reactionTarget == index), 220*time.Millisecond)
 	if !hasReaction && progress <= 0 {
 		return layout.Dimensions{}
 	}

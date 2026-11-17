@@ -1,4 +1,4 @@
-# Waycord design system v0
+# Waycord design system
 
 ## Intent
 
@@ -22,23 +22,27 @@ Dense without feeling cramped. Crisp typography, tonal dark surfaces, rounded co
 
 Single source of truth: `internal/ui/theme/palette.go`.
 
-## Desktop layout (first iteration)
+## Desktop layout
 
-- **Navigation:** server rail and channel list form one rounded surface. The channel list can be collapsed or resized; its chosen width is retained while the app runs.
+- **Navigation:** server rail and channel list form one rounded surface, with a fine divider. The channel list can be collapsed or resized; its chosen width is retained while the app runs. Server supplied categories collapse by their own names; uncategorized channels stay at the top.
 - **Workspace:** flexible width, 58dp header, virtualized message list and message composer.
 - **Direct messages:** their own navigation entry and contact list; a compact profile for the selected contact appears only in the direct conversation when there is room.
+- **Own profile:** clicking the user panel opens a floating card with local presence selection, editable display name and status; voice location appears only while connected.
+- **Members:** the server member panel is optional and is only laid out while open.
+- **Message tools:** search filters the current conversation. Pins filter the current channel; pin, unpin, reply and copy actions are available from the message menu.
 - **Emoji:** a bundled color font supplies a fallback on both desktop platforms; the composer includes a small local picker.
-- **Reactions:** hovering over a message shows quick reactions and a local emoji picker; selecting an existing reaction again removes it.
-- **Updates screen:** separate workspace route with channel picker and explicit explanation of signed OTA steps.
-- **Minimum window:** 800 × 540dp; responsive reflow below this size is future work.
+- **Reactions:** hovering over a message shows quick reactions and a local emoji picker; selecting an existing reaction again removes it. Hover state does not change row height.
+- **Settings:** Appearance offers dark, midnight and light themes plus compact messages; Performance can reduce motion; Audio controls microphone/deafen state; Video controls are only present in an active voice preview; Updates contains signed release discovery.
+- **Motion:** controls, overlays, sidebars and workspace transitions animate by default. The Reduce motion setting disables movement and hover transitions.
+- **Minimum window:** 800 × 540dp, with compact behavior for narrow widths.
 
 ## Interaction policies
 
 - Buttons size to their label and intentional padding, rather than inheriting a header or panel's minimum dimensions.
-- Everything in the current build is labeled `offline preview` where appropriate. Clicking Send updates local fixture data only.
+- The application uses local fixture data. Send, reactions, reply, pins, profile edits, search, channel selection, voice controls and settings change local state only.
 - Channel controls switch between local preview conversations.
-- The updates screen reports that checks are unavailable in the preview.
-- Actual OTA is through `waycord-updater` CLI until trusted signing setup and GUI integration exist.
+- User settings are stored under the operating-system configuration directory with two recoverable generations.
+- Update discovery is available in Settings when a trusted signing key is configured. Installation stays in the standalone updater until the trust key and release workflow are configured.
 - Focus states, keyboard navigation, high DPI, accessibility, empty/loading/error views, and icons are the next design passes.
 
 ## Performance goals (not measured results)

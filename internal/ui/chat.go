@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image"
+	"strings"
 	"time"
 
 	"gioui.org/layout"
@@ -14,17 +15,16 @@ import (
 
 func (a *App) chat(gtx layout.Context) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{Top: 2, Left: 22, Right: 22, Bottom: 12}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return a.text("Preview · Offline", 11, a.palette.Subtle)(gtx)
-			})
-		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			var visible []int
-			for index, m := range a.messages {
-				if m.Direct == a.direct && (a.direct || m.Channel == a.activeChannel) {
-					visible = append(visible, index)
+			visible := a.visibleMessages()
+			if len(visible) == 0 {
+				message := "No messages in this channel yet."
+				if a.pinsOnly {
+					message = "No pinned messages in this channel."
+				} else if query := strings.TrimSpace(a.searchEditor.Text()); query != "" {
+					message = "No messages match “" + query + "”."
 				}
+				return layout.Inset{Top: 24, Left: 22, Right: 22}.Layout(gtx, a.text(message, 14, a.palette.Subtle))
 			}
 			return layout.Inset{Left: 20, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return a.messageList.Layout(gtx, len(visible), func(gtx layout.Context, i int) layout.Dimensions {
@@ -43,9 +43,10 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 			})
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			progress := a.emojiSlide.layoutProgress(gtx, a.emojiOpen)
+			progress := a.transition(gtx, &a.emojiSlide, boolProgress(a.emojiOpen), 220*time.Millisecond)
 			return a.animatedEmojiPicker(gtx, progress)
 		}),
+		layout.Rigid(a.replyPreview),
 		layout.Rigid(a.attachmentDraft),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: 8, Bottom: 14, Left: 20, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -90,7 +91,7 @@ func (a *App) message(gtx layout.Context, index int, m mock.Message, grouped boo
 	}
 	a.messageHover(gtx, index, dim.Size)
 	if a.contextShown == index {
-		progress := a.contextSlide.layoutProgress(gtx, a.contextTarget == index)
+		progress := a.transition(gtx, &a.contextSlide, boolProgress(a.contextTarget == index), 220*time.Millisecond)
 		if progress == 0 && a.contextTarget != index {
 			a.contextShown = -1
 		}
@@ -99,12 +100,12 @@ func (a *App) message(gtx layout.Context, index int, m mock.Message, grouped boo
 		}
 		position := a.contextPosition
 		position.X = max(0, min(position.X, dim.Size.X-gtx.Dp(190)))
-		position.Y = max(0, position.Y)
+		position.Y = max(0, min(position.Y, dim.Size.Y-gtx.Dp(144)))
 		macro := op.Record(gtx.Ops)
 		offset := op.Offset(image.Pt(position.X, position.Y)).Push(gtx.Ops)
 		menuContext := gtx
-		menuContext.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(190), gtx.Dp(100))}
-		animatedReveal(menuContext, progress, 82, fixedHeight(82, a.contextMenu))
+		menuContext.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(190), gtx.Dp(150))}
+		animatedReveal(menuContext, progress, 144, fixedHeight(144, a.contextMenu))
 		offset.Pop()
 		op.Defer(gtx.Ops, macro.Stop())
 	}
@@ -116,7 +117,7 @@ func (a *App) messageContent(gtx layout.Context, index int, m mock.Message) layo
 }
 
 func messagesGroup(previous, current mock.Message) bool {
-	if previous.Author != current.Author || previous.Direct != current.Direct || previous.Channel != current.Channel || previous.SentAt.IsZero() || current.SentAt.IsZero() || current.SentAt.Before(previous.SentAt) {
+	if previous.Author != current.Author || previous.Direct != current.Direct || (!previous.Direct && (previous.Server != current.Server || previous.Channel != current.Channel)) || previous.SentAt.IsZero() || current.SentAt.IsZero() || current.SentAt.Before(previous.SentAt) {
 		return false
 	}
 	return previous.SentAt.Truncate(time.Minute).Equal(current.SentAt.Truncate(time.Minute))
@@ -141,6 +142,7 @@ func (a *App) messageContentGrouped(gtx layout.Context, index int, m mock.Messag
 		hspace(14),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.messageReply(gtx, index, m) }),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					if grouped {
 						return layout.Dimensions{}

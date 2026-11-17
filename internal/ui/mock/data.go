@@ -9,21 +9,54 @@ import (
 )
 
 type Message struct {
+	Server     int
 	Channel    int
 	Author     string
 	Time       string
 	Body       string
 	Self       bool
 	Direct     bool
+	HasReply   bool
+	ReplyTo    int
+	Pinned     bool
 	SentAt     time.Time
 	Attachment *attachments.Attachment
 }
 
 var Channels = []string{"general", "dev-chat", "showcase", "ideas"}
+
+type Category struct {
+	Name     string
+	Channels []int
+}
+
+type Member struct {
+	Name     string
+	Role     string
+	Status   string
+	Activity string
+	Bot      bool
+}
+
+type Server struct {
+	Name          string
+	Icon          string
+	Channels      []string
+	Uncategorized []int
+	Categories    []Category
+	VoiceChannel  string
+	Members       []Member
+}
+
+var Servers = []Server{
+	{Name: "Waycord", Icon: "W", Channels: Channels, Uncategorized: []int{0, 1, 2, 3}, VoiceChannel: "Lounge", Members: []Member{{Name: "mira", Role: "Members", Status: "Online", Activity: "Listening to music"}, {Name: "angyedz", Role: "Administrators", Status: "Online"}, {Name: "k66", Role: "Members", Status: "Idle"}, {Name: "GSL bot", Role: "Bots", Status: "Online", Bot: true}}},
+	{Name: "Studio", Icon: "S", Channels: []string{"welcome", "chat", "projects", "feedback"}, Uncategorized: []int{0}, Categories: []Category{{Name: "Community", Channels: []int{1}}, {Name: "Workshop", Channels: []int{2, 3}}}, Members: []Member{{Name: "mira", Role: "Moderators", Status: "Online"}, {Name: "k66", Role: "Members", Status: "Idle"}}},
+}
+
 var Messages = []Message{
 	{Direct: true, Author: "mira", Time: "10:24", Body: "Hey! Are we still meeting later?"},
 	{Direct: true, Author: "You", Time: "10:26", Body: "Yes, see you there!", Self: true},
-	{Channel: 1, Author: "mira", Time: "10:24", SentAt: time.Date(2026, 11, 17, 10, 24, 8, 0, time.UTC), Body: "Hey everyone! How is your day going?"},
+	{Channel: 1, Author: "mira", Time: "10:24", SentAt: time.Date(2026, 11, 17, 10, 24, 8, 0, time.UTC), Body: "Hey everyone! How is your day going?", Pinned: true},
 	{Channel: 1, Author: "mira", Time: "10:24", SentAt: time.Date(2026, 11, 17, 10, 24, 22, 0, time.UTC), Body: "I've got a few ideas to share."},
 	{Channel: 1, Author: "angyedz", Time: "10:26", Body: "Pretty good! I have **bold**, *italic*, and `code` styles.", Self: true},
 	{Channel: 1, Author: "k66", Time: "10:27", Body: "I have been putting together a few ideas."},
@@ -37,4 +70,6 @@ var Messages = []Message{
 	{Channel: 0, Author: "k66", Time: "09:25", Body: "Any recommendations?"},
 	{Channel: 2, Author: "k66", Time: "Yesterday", Body: "Here is something I made this week."},
 	{Channel: 3, Author: "mira", Time: "Yesterday", Body: "What should we try next?"},
+	{Server: 1, Channel: 0, Author: "mira", Time: "10:00", Body: "Welcome to the studio!"},
+	{Server: 1, Channel: 2, Author: "k66", Time: "10:15", Body: "Share your work here."},
 }

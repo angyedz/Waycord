@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"image"
-	"strconv"
 	"strings"
 	"time"
 
@@ -28,59 +27,97 @@ import (
 
 // App contains UI state only. Future protocol/media services stay outside it.
 type App struct {
-	palette                                   theme.Palette
-	theme                                     *material.Theme
-	messageMarkdown                           *uiMarkdown.Cache
-	channelButtons                            [4]widget.Clickable
-	chatButton, updatesButton, sendButton     widget.Clickable
-	updateCheckButton, updateAutoButton       widget.Clickable
-	updateOpenButton                          widget.Clickable
-	updateChannelButtons                      [3]widget.Clickable
-	settingsSections                          [5]widget.Clickable
-	compactButton                             widget.Clickable
-	settingsSection                           int
-	compactMessages                           bool
-	directButton, serverButton, contactButton widget.Clickable
-	sidebarButton, profileButton              widget.Clickable
-	membersButton                             widget.Clickable
-	voiceJoin, voiceLeave                     widget.Clickable
-	voiceMute, voiceDeafen                    widget.Clickable
-	voiceCamera, voiceScreen                  widget.Clickable
-	voice                                     voicepreview.State
-	micIcon, micOffIcon, headsetIcon          *widget.Icon
-	videoIcon, videoOffIcon                   *widget.Icon
-	screenIcon, screenOffIcon, hangupIcon     *widget.Icon
-	sidebar                                   sidebarState
-	menuIcon                                  *widget.Icon
-	sendIcon                                  *widget.Icon
-	settingsIcon                              *widget.Icon
-	copyIcon                                  *widget.Icon
-	attachIcon                                *widget.Icon
-	attachButton, removeAttachmentButton      widget.Clickable
-	attachmentDrafts                          map[string]*attachments.Attachment
-	attachmentResults                         chan attachmentResult
-	chooseAttachment                          func() (*attachments.Attachment, error)
-	attachmentBusy                            bool
-	attachmentError                           string
-	attachmentPreviews                        attachmentPreviewCache
-	membersIcon                               *widget.Icon
-	interactions                              map[*widget.Clickable]*interactionState
-	emojiIcon                                 *widget.Icon
-	emojiButton                               widget.Clickable
-	emojiChoices                              [8]widget.Clickable
-	emojiOpen                                 bool
-	emojiSlide                                panelTransition
-	sendHover                                 float32
-	sendHoverTime                             time.Time
-	activeChannel                             int
-	updatesView                               bool
-	updateChannel                             string
-	updateAutoCheck                           bool
-	updateChecking                            bool
-	updateStatus                              string
-	updateResult                              chan updateCheckResult
-	updateSignals                             chan struct{}
-	updateChecker                             interface {
+	palette                                theme.Palette
+	theme                                  *material.Theme
+	messageMarkdown                        *uiMarkdown.Cache
+	channelButtons                         [][]widget.Clickable
+	chatButton, updatesButton, sendButton  widget.Clickable
+	searchButton, searchCloseButton        widget.Clickable
+	pinnedButton                           widget.Clickable
+	updateCheckButton, updateAutoButton    widget.Clickable
+	updateOpenButton                       widget.Clickable
+	updateChannelButtons                   [3]widget.Clickable
+	settingsSections                       [5]widget.Clickable
+	themeButtons                           [3]widget.Clickable
+	compactButton                          widget.Clickable
+	reduceMotionButton                     widget.Clickable
+	settingsSection                        int
+	compactMessages                        bool
+	reduceMotion                           bool
+	themeName                              string
+	settingsStatus                         string
+	saveUIPreferences                      func(string, bool, bool) error
+	directButton, contactButton            widget.Clickable
+	serverButtons                          []widget.Clickable
+	categoryButtons                        map[string]*widget.Clickable
+	collapsedCategories                    map[string]bool
+	categoryTransitions                    map[string]*panelTransition
+	sidebarButton, profileButton           widget.Clickable
+	membersButton                          widget.Clickable
+	voiceJoin, voiceLeave                  widget.Clickable
+	voiceMute, voiceDeafen                 widget.Clickable
+	voiceCamera, voiceScreen               widget.Clickable
+	voice                                  voicepreview.State
+	voicePanelSlide                        panelTransition
+	selfProfileButton, selfProfileBackdrop widget.Clickable
+	selfStatusButtons                      [4]widget.Clickable
+	selfProfileEditButton                  widget.Clickable
+	selfProfileSaveButton                  widget.Clickable
+	selfProfileCancelButton                widget.Clickable
+	selfProfileNameEditor                  widget.Editor
+	selfProfileStatusEditor                widget.Editor
+	replyCancelButton                      widget.Clickable
+	selfProfileOpen                        bool
+	selfProfileEditing                     bool
+	selfProfileSlide                       panelTransition
+	selfPresence                           int
+	selfProfileName                        string
+	selfProfileUsername                    string
+	selfProfileStatus                      string
+	voiceServer, voiceChannel              string
+	micIcon, micOffIcon, headsetIcon       *widget.Icon
+	videoIcon, videoOffIcon                *widget.Icon
+	screenIcon, screenOffIcon, hangupIcon  *widget.Icon
+	sidebar                                sidebarState
+	menuIcon                               *widget.Icon
+	sendIcon                               *widget.Icon
+	settingsIcon                           *widget.Icon
+	searchIcon, pinnedIcon, closeIcon      *widget.Icon
+	replyIcon                              *widget.Icon
+	moreIcon                               *widget.Icon
+	attachIcon                             *widget.Icon
+	attachButton, removeAttachmentButton   widget.Clickable
+	attachmentDrafts                       map[string]*attachments.Attachment
+	attachmentResults                      chan attachmentResult
+	chooseAttachment                       func() (*attachments.Attachment, error)
+	attachmentBusy                         bool
+	attachmentError                        string
+	attachmentPreviews                     attachmentPreviewCache
+	membersIcon                            *widget.Icon
+	interactions                           map[*widget.Clickable]*interactionState
+	emojiIcon                              *widget.Icon
+	emojiButton                            widget.Clickable
+	emojiChoices                           [8]widget.Clickable
+	emojiOpen                              bool
+	emojiSlide                             panelTransition
+	searchOpen                             bool
+	pinsOnly                               bool
+	searchEditor                           widget.Editor
+	searchSlide                            panelTransition
+	sendHover                              float32
+	sendHoverTime                          time.Time
+	activeChannel                          int
+	activeServer                           int
+	serverChannels                         []int
+	composerDrafts                         map[string]string
+	updatesView                            bool
+	updateChannel                          string
+	updateAutoCheck                        bool
+	updateChecking                         bool
+	updateStatus                           string
+	updateResult                           chan updateCheckResult
+	updateSignals                          chan struct{}
+	updateChecker                          interface {
 		Check(context.Context, string, string, string, string, ed25519.PublicKey) (ota.Update, error)
 	}
 	saveUpdatePreferences                      func(string, bool) error
@@ -96,6 +133,8 @@ type App struct {
 	contentSlide                               panelTransition
 	messageList                                layout.List
 	updateList                                 layout.List
+	serverChannelList                          layout.List
+	memberList                                 layout.List
 	composer                                   widget.Editor
 	messages                                   []mock.Message
 	reactions                                  reactions.Store
@@ -103,13 +142,17 @@ type App struct {
 	reactionTarget                             int
 	contextTarget                              int
 	contextShown                               int
+	replyTarget                                int
 	contextPosition                            image.Point
 	contextSlide                               panelTransition
 	contextBackdrop, contextCopy, contextReact widget.Clickable
+	contextReply                               widget.Clickable
+	contextPin                                 widget.Clickable
 }
 
 func New() *App {
-	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, contextShown: -1, palette: theme.Dark, activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}, updateChannel: "stable", updateResult: make(chan updateCheckResult, 1), updateSignals: make(chan struct{}, 1), updateChecker: ota.GitHubSource{Owner: "angyedz", Repository: "Waycord"}, updateCtx: context.Background()}
+	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, contextShown: -1, replyTarget: -1, palette: theme.Dark, themeName: "dark", activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}, updateChannel: "stable", updateResult: make(chan updateCheckResult, 1), updateSignals: make(chan struct{}, 1), updateChecker: ota.GitHubSource{Owner: "angyedz", Repository: "Waycord"}, updateCtx: context.Background(), selfProfileName: "angyedz", selfProfileUsername: "angyedz", selfProfileStatus: "On a break"}
+	a.selfPresence = 3
 	a.theme = material.NewTheme()
 	if shaper, err := theme.NewShaper(); err == nil {
 		a.theme.Shaper = shaper
@@ -118,10 +161,25 @@ func New() *App {
 	a.menuIcon, _ = widget.NewIcon(icons.NavigationMenu)
 	a.sendIcon, _ = widget.NewIcon(icons.ContentSend)
 	a.settingsIcon, _ = widget.NewIcon(icons.ActionSettings)
+	a.searchIcon, _ = widget.NewIcon(icons.ActionSearch)
+	a.pinnedIcon, _ = widget.NewIcon(icons.ActionLabel)
+	a.closeIcon, _ = widget.NewIcon(icons.NavigationClose)
 	a.attachIcon, _ = widget.NewIcon(icons.ContentAddCircleOutline)
 	a.attachmentDrafts = make(map[string]*attachments.Attachment)
+	a.serverButtons = make([]widget.Clickable, len(mock.Servers))
+	a.serverChannels = make([]int, len(mock.Servers))
+	a.channelButtons = make([][]widget.Clickable, len(mock.Servers))
+	for i, server := range mock.Servers {
+		a.channelButtons[i] = make([]widget.Clickable, len(server.Channels))
+	}
+	a.categoryButtons = make(map[string]*widget.Clickable)
+	a.collapsedCategories = make(map[string]bool)
+	a.categoryTransitions = make(map[string]*panelTransition)
+	a.composerDrafts = make(map[string]string)
+	a.serverChannels[0] = a.activeChannel
 	a.attachmentResults = make(chan attachmentResult, 1)
-	a.copyIcon, _ = widget.NewIcon(icons.ContentContentCopy)
+	a.replyIcon, _ = widget.NewIcon(icons.ContentReply)
+	a.moreIcon, _ = widget.NewIcon(icons.NavigationMoreHoriz)
 	a.membersIcon, _ = widget.NewIcon(icons.SocialPeople)
 	a.micIcon, _ = widget.NewIcon(icons.AVMic)
 	a.micOffIcon, _ = widget.NewIcon(icons.AVMicOff)
@@ -137,6 +195,15 @@ func New() *App {
 	a.composer.SingleLine = true
 	a.composer.Submit = true
 	a.composer.MaxLen = 2000
+	a.searchEditor.SingleLine = true
+	a.searchEditor.Submit = true
+	a.searchEditor.MaxLen = 128
+	a.selfProfileNameEditor.SingleLine = true
+	a.selfProfileNameEditor.MaxLen = 32
+	a.selfProfileNameEditor.SetText(a.selfProfileName)
+	a.selfProfileStatusEditor.SingleLine = true
+	a.selfProfileStatusEditor.MaxLen = 80
+	a.selfProfileStatusEditor.SetText(a.selfProfileStatus)
 	a.messages = append([]mock.Message(nil), mock.Messages...)
 	return a
 }
@@ -145,6 +212,7 @@ func (a *App) process(gtx layout.Context) {
 	a.processAttachmentResults()
 	a.processUpdateChecks()
 	a.processContextMenu(gtx)
+	a.processSearch(gtx)
 	a.processReactions(gtx)
 	if a.emojiButton.Clicked(gtx) {
 		a.emojiOpen = !a.emojiOpen
@@ -166,6 +234,11 @@ func (a *App) process(gtx layout.Context) {
 		a.membersOpen = !a.membersOpen
 	}
 	if a.voiceJoin.Clicked(gtx) {
+		server := mock.Servers[a.activeServer]
+		if a.voice.Connected && (a.voiceServer != server.Name || a.voiceChannel != server.VoiceChannel) {
+			a.voice.Leave()
+		}
+		a.voiceServer, a.voiceChannel = server.Name, server.VoiceChannel
 		a.voice.Join()
 	}
 	if a.voiceLeave.Clicked(gtx) {
@@ -183,6 +256,7 @@ func (a *App) process(gtx layout.Context) {
 	if a.voiceScreen.Clicked(gtx) {
 		a.voice.ToggleScreen()
 	}
+	a.processSelfProfile(gtx)
 	if a.attachButton.Clicked(gtx) {
 		a.beginAttachmentSelection()
 	}
@@ -190,30 +264,37 @@ func (a *App) process(gtx layout.Context) {
 		delete(a.attachmentDrafts, a.conversationKey())
 		a.attachmentError = ""
 	}
+	if a.replyCancelButton.Clicked(gtx) {
+		a.replyTarget = -1
+	}
 	a.sidebar.update(gtx)
 	if a.directButton.Clicked(gtx) || a.contactButton.Clicked(gtx) {
 		a.contextTarget = -1
 		a.reactionTarget = -1
-		a.direct, a.updatesView = true, false
+		a.switchConversation(true, a.activeServer, a.activeChannel)
 		a.messageList.Position = layout.Position{}
 		a.messageList.ScrollToEnd = false
 	}
-	if a.serverButton.Clicked(gtx) {
-		a.contextTarget = -1
-		a.reactionTarget = -1
-		a.direct, a.updatesView = false, false
-		a.messageList.Position = layout.Position{}
-		a.messageList.ScrollToEnd = false
+	for i := range a.serverButtons {
+		if a.serverButtons[i].Clicked(gtx) {
+			changedServer := a.activeServer != i
+			a.switchConversation(false, i, a.serverChannels[i])
+			if changedServer {
+				a.serverChannelList.Position = layout.Position{}
+				a.memberList.Position = layout.Position{}
+			}
+		}
 	}
-	for i := range a.channelButtons {
-		if a.channelButtons[i].Clicked(gtx) {
-			a.contextTarget = -1
-			a.reactionTarget = -1
-			a.activeChannel = i
-			a.updatesView = false
-			a.direct = false
-			a.messageList.Position = layout.Position{}
-			a.messageList.ScrollToEnd = false
+	for server, channels := range a.channelButtons {
+		for channel := range channels {
+			if server == a.activeServer && channels[channel].Clicked(gtx) {
+				a.switchConversation(false, server, channel)
+			}
+		}
+	}
+	for key, button := range a.categoryButtons {
+		if button.Clicked(gtx) {
+			a.collapsedCategories[key] = !a.collapsedCategories[key]
 		}
 	}
 	if a.chatButton.Clicked(gtx) {
@@ -222,6 +303,9 @@ func (a *App) process(gtx layout.Context) {
 	if a.updatesButton.Clicked(gtx) {
 		a.contextTarget = -1
 		a.updatesView = true
+		a.searchOpen = false
+		a.searchEditor.SetText("")
+		a.pinsOnly = false
 	}
 	for i := range a.settingsSections {
 		if a.settingsSections[i].Clicked(gtx) {
@@ -229,7 +313,15 @@ func (a *App) process(gtx layout.Context) {
 		}
 	}
 	if a.compactButton.Clicked(gtx) {
-		a.compactMessages = !a.compactMessages
+		a.setUIPreferences(a.themeName, !a.compactMessages, a.reduceMotion)
+	}
+	if a.reduceMotionButton.Clicked(gtx) {
+		a.setUIPreferences(a.themeName, a.compactMessages, !a.reduceMotion)
+	}
+	for i, name := range [...]string{"dark", "midnight", "light"} {
+		if a.themeButtons[i].Clicked(gtx) {
+			a.setUIPreferences(name, a.compactMessages, a.reduceMotion)
+		}
 	}
 	if a.updateCheckButton.Clicked(gtx) {
 		a.checkForUpdates()
@@ -268,15 +360,41 @@ func (a *App) sendPreview() {
 		return
 	}
 	now := time.Now()
-	a.messages = append(a.messages, mock.Message{Channel: a.activeChannel, Direct: a.direct, Author: "You", Time: now.Format("15:04"), SentAt: now, Body: body, Self: true, Attachment: attachment})
+	message := mock.Message{Server: a.activeServer, Channel: a.activeChannel, Direct: a.direct, Author: a.selfProfileName, Time: now.Format("15:04"), SentAt: now, Body: body, Self: true, Attachment: attachment}
+	if a.replyTarget >= 0 && a.replyTarget < len(a.messages) {
+		replied := a.messages[a.replyTarget]
+		if replied.Direct == a.direct && (a.direct || (replied.Server == a.activeServer && replied.Channel == a.activeChannel)) {
+			message.HasReply, message.ReplyTo = true, a.replyTarget
+		}
+	}
+	a.messages = append(a.messages, message)
 	delete(a.attachmentDrafts, key)
 	a.composer.SetText("")
+	a.replyTarget = -1
 	a.messageList.ScrollToEnd = true
+}
+
+func (a *App) switchConversation(direct bool, server, channel int) {
+	if server < 0 || server >= len(mock.Servers) || channel < 0 || channel >= len(mock.Servers[server].Channels) {
+		return
+	}
+	a.composerDrafts[a.conversationKey()] = a.composer.Text()
+	a.direct, a.activeServer, a.activeChannel, a.updatesView = direct, server, channel, false
+	if !direct {
+		a.serverChannels[server] = channel
+	}
+	a.composer.SetText(a.composerDrafts[a.conversationKey()])
+	a.contextTarget, a.reactionTarget = -1, -1
+	a.replyTarget = -1
+	a.searchEditor.SetText("")
+	a.pinsOnly = false
+	a.messageList.Position = layout.Position{}
+	a.messageList.ScrollToEnd = false
 }
 
 func (a *App) Layout(gtx layout.Context) layout.Dimensions {
 	a.process(gtx)
-	width := a.sidebar.animate(gtx)
+	width := a.sidebar.animate(gtx, a.reduceMotion)
 	dims := rounded(gtx, a.palette.Canvas, 0, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -323,16 +441,23 @@ func (a *App) Layout(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: dims.Size}
 		})
 	}
+	profileProgress := a.transition(gtx, &a.selfProfileSlide, boolProgress(a.selfProfileOpen), 220*time.Millisecond)
+	if profileProgress > 0 {
+		a.selfProfileOverlay(gtx, dims.Size, profileProgress)
+	}
 	return dims
 }
 
 func (a *App) serverRail(gtx layout.Context) layout.Dimensions {
 	return layout.Inset{Top: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.railButton(gtx, &a.directButton, "@", a.direct) }),
-			vspace(10),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.railButton(gtx, &a.serverButton, "W", !a.direct) }),
-		)
+		children := []layout.FlexChild{layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.railButton(gtx, &a.directButton, "@", a.direct) }), vspace(10)}
+		for i, server := range mock.Servers {
+			i, server := i, server
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return a.railButton(gtx, &a.serverButtons[i], server.Icon, !a.direct && a.activeServer == i)
+			}), vspace(10))
+		}
+		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx, children...)
 	})
 }
 
@@ -345,7 +470,7 @@ func (a *App) channelRail(gtx layout.Context) layout.Dimensions {
 						if a.direct {
 							return a.text("Messages", 18, a.palette.Text)(gtx)
 						}
-						return a.text("Waycord", 18, a.palette.Text)(gtx)
+						return a.text(mock.Servers[a.activeServer].Name, 18, a.palette.Text)(gtx)
 					}),
 				)
 			}))(gtx)
@@ -360,17 +485,7 @@ func (a *App) channelRail(gtx layout.Context) layout.Dimensions {
 						}),
 					)
 				}
-				var kids []layout.FlexChild
-				for i, n := range mock.Channels {
-					i, n := i, n
-					kids = append(kids, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return a.clickLabel(gtx, &a.channelButtons[i], "#  "+n, i == a.activeChannel && !a.updatesView)
-					}), vspace(4))
-				}
-				kids = append(kids, vspace(8), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return a.clickLabel(gtx, &a.voiceJoin, "◖  Lounge", a.voice.Connected)
-				}))
-				return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
+				return a.serverChannelsLayout(gtx)
 			})
 		}),
 	)
@@ -384,12 +499,12 @@ func (a *App) workspace(gtx layout.Context) layout.Dimensions {
 }
 
 func (a *App) animatedWorkspaceContent(gtx layout.Context) layout.Dimensions {
-	key := "server:" + strconv.Itoa(a.activeChannel)
+	key := a.conversationKey()
 	if a.direct {
 		key = "direct:mira"
 	}
 	if a.updatesView {
-		key = "updates"
+		key = "settings:" + settingsNames[a.settingsSection]
 	}
 	if a.contentKey == "" {
 		a.contentKey = key
@@ -400,10 +515,7 @@ func (a *App) animatedWorkspaceContent(gtx layout.Context) layout.Dimensions {
 		a.contentSlide.value, a.contentSlide.from, a.contentSlide.target = 0, 0, 0
 		a.contentSlide.started = time.Time{}
 	}
-	progress := a.contentSlide.advanceTo(gtx.Now, 1, 200*time.Millisecond)
-	if progress < 1 {
-		gtx.Execute(op.InvalidateCmd{})
-	}
+	progress := a.transition(gtx, &a.contentSlide, 1, 200*time.Millisecond)
 	width := gtx.Dp(14)
 	shift := int(float32(width) * (1 - progress))
 	clipArea := clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops)
@@ -413,11 +525,11 @@ func (a *App) animatedWorkspaceContent(gtx layout.Context) layout.Dimensions {
 		child = a.settings(gtx)
 	} else {
 		showProfile := a.direct && a.profileOpen && gtx.Constraints.Max.X >= gtx.Dp(730)
-		profileProgress := a.profileSlide.layoutProgress(gtx, showProfile)
+		profileProgress := a.transition(gtx, &a.profileSlide, boolProgress(showProfile), 220*time.Millisecond)
 		if profileProgress > 0 && a.direct {
 			child = layout.Flex{}.Layout(gtx, layout.Flexed(1, a.chat), layout.Rigid(a.slidingProfile(profileProgress)))
 		} else if !a.direct {
-			membersProgress := a.membersSlide.layoutProgress(gtx, a.membersOpen && gtx.Constraints.Max.X >= gtx.Dp(730))
+			membersProgress := a.transition(gtx, &a.membersSlide, boolProgress(a.membersOpen && gtx.Constraints.Max.X >= gtx.Dp(730)), 220*time.Millisecond)
 			if membersProgress > 0 {
 				child = layout.Flex{}.Layout(gtx, layout.Flexed(1, a.chat), layout.Rigid(a.slidingMembers(membersProgress)))
 			} else {
@@ -433,16 +545,20 @@ func (a *App) animatedWorkspaceContent(gtx layout.Context) layout.Dimensions {
 }
 func (a *App) header(gtx layout.Context) layout.Dimensions {
 	wide := gtx.Constraints.Max.X >= gtx.Dp(730)
+	searchProgress := a.transition(gtx, &a.searchSlide, boolProgress(a.searchOpen && !a.updatesView), 180*time.Millisecond)
 	return rounded(gtx, a.palette.Canvas, 0, fixedHeight(58, func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Left: 20, Right: 20, Top: 8, Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+			children := []layout.FlexChild{
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return layout.Inset{Right: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return a.iconControl(gtx, &a.sidebarButton, a.menuIcon, 36, 20, "Toggle sidebar")
 					})
 				}),
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					title := "# " + mock.Channels[a.activeChannel]
+					if (a.searchOpen || searchProgress > 0) && !a.updatesView {
+						return a.searchField(gtx, searchProgress)
+					}
+					title := "# " + mock.Servers[a.activeServer].Channels[a.activeChannel]
 					if a.direct {
 						title = "@ mira"
 					}
@@ -454,19 +570,39 @@ func (a *App) header(gtx layout.Context) layout.Dimensions {
 					offset.Pop()
 					return dimensions
 				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if a.direct && !a.updatesView && wide {
-						return a.pill(gtx, &a.profileButton, "Profile", a.profileOpen)
-					}
-					if !a.direct && !a.updatesView && wide {
-						return a.iconControl(gtx, &a.membersButton, a.membersIcon, 36, 20, "Toggle members")
-					}
-					if !a.updatesView {
-						return layout.Dimensions{}
-					}
+			}
+			if a.updatesView {
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return a.pill(gtx, &a.chatButton, "Back", false)
-				}),
-			)
+				}))
+			} else if a.searchOpen || searchProgress > 0 {
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return a.iconControl(gtx, &a.searchCloseButton, a.closeIcon, 36, 16, "Close search")
+				}))
+			} else {
+				if a.direct && wide {
+					children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return a.pill(gtx, &a.profileButton, "Profile", a.profileOpen)
+					}))
+				} else if !a.direct && wide {
+					children = append(children,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return a.iconToggle(gtx, &a.pinnedButton, a.pinnedIcon, 36, 18, "Toggle pinned messages", a.pinsOnly)
+						}),
+						hspace(4),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return a.iconControl(gtx, &a.membersButton, a.membersIcon, 36, 20, "Toggle members")
+						}),
+					)
+				}
+				children = append(children,
+					hspace(4),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return a.iconControl(gtx, &a.searchButton, a.searchIcon, 36, 18, "Search this channel")
+					}),
+				)
+			}
+			return layout.Flex{Alignment: layout.Middle}.Layout(gtx, children...)
 		})
 	}))
 }

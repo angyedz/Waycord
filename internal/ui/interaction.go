@@ -65,6 +65,26 @@ func (p *panelTransition) layoutProgress(gtx layout.Context, open bool) float32 
 	return value
 }
 
+func boolProgress(open bool) float32 {
+	if open {
+		return 1
+	}
+	return 0
+}
+
+func (a *App) transition(gtx layout.Context, state *panelTransition, target float32, duration time.Duration) float32 {
+	if a.reduceMotion {
+		state.value, state.from, state.target, state.duration = target, target, target, 0
+		state.started = gtx.Now
+		return target
+	}
+	value := state.advanceTo(gtx.Now, target, duration)
+	if value != target {
+		gtx.Execute(op.InvalidateCmd{})
+	}
+	return value
+}
+
 func animatedReveal(gtx layout.Context, progress float32, height unit.Dp, child layout.Widget) layout.Dimensions {
 	if progress <= 0 {
 		return layout.Dimensions{}
@@ -108,10 +128,7 @@ func (a *App) interactionColor(gtx layout.Context, button *widget.Clickable, nor
 		state = &interactionState{}
 		a.interactions[button] = state
 	}
-	value := state.transition.advanceTo(gtx.Now, target, 130*time.Millisecond)
-	if value != target {
-		gtx.Execute(op.InvalidateCmd{})
-	}
+	value := a.transition(gtx, &state.transition, target, 130*time.Millisecond)
 	if value == 0 && target == 0 {
 		delete(a.interactions, button)
 	}
@@ -121,6 +138,20 @@ func (a *App) interactionColor(gtx layout.Context, button *widget.Clickable, nor
 // iconControl provides a consistent animated surface and a labeled hit target.
 func (a *App) iconControl(gtx layout.Context, button *widget.Clickable, icon *widget.Icon, size, glyph unit.Dp, label string) layout.Dimensions {
 	background := a.interactionColor(gtx, button, color.NRGBA{}, a.palette.AccentDim)
+	return button.Layout(gtx, fixedWidth(size, fixedHeight(size, func(gtx layout.Context) layout.Dimensions {
+		semantic.LabelOp(label).Add(gtx.Ops)
+		return rounded(gtx, background, size/2, func(gtx layout.Context) layout.Dimensions {
+			return layout.Center.Layout(gtx, fixedWidth(glyph, func(gtx layout.Context) layout.Dimensions { return icon.Layout(gtx, a.palette.Text) }))
+		})
+	})))
+}
+
+func (a *App) iconToggle(gtx layout.Context, button *widget.Clickable, icon *widget.Icon, size, glyph unit.Dp, label string, active bool) layout.Dimensions {
+	background := color.NRGBA{}
+	if active {
+		background = a.palette.AccentDim
+	}
+	background = a.interactionColor(gtx, button, background, a.palette.Surface2)
 	return button.Layout(gtx, fixedWidth(size, fixedHeight(size, func(gtx layout.Context) layout.Dimensions {
 		semantic.LabelOp(label).Add(gtx.Ops)
 		return rounded(gtx, background, size/2, func(gtx layout.Context) layout.Dimensions {
