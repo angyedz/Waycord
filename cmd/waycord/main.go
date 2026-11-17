@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"gioui.org/app"
 	"gioui.org/op"
@@ -26,6 +27,8 @@ func run() error {
 	view := ui.New()
 	var ops op.Ops
 	healthReported := false
+	var nextHealthPulse time.Time
+	var healthObservationEnds time.Time
 	for {
 		switch event := w.Event().(type) {
 		case app.DestroyEvent:
@@ -33,12 +36,34 @@ func run() error {
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, event)
 			view.Layout(gtx)
+			challenge := ota.HealthChallengeEnabled()
+			if challenge && !healthReported {
+				gtx.Execute(op.InvalidateCmd{At: time.Now().Add(ota.HealthPulseInterval)})
+			} else if challenge && time.Now().Before(healthObservationEnds) {
+				now := time.Now()
+				if !now.Before(nextHealthPulse) {
+					if err := ota.PulseHealthy(); err != nil {
+						log.Print("startup heartbeat: ", err)
+					}
+					nextHealthPulse = now.Add(ota.HealthPulseInterval)
+				}
+				if nextHealthPulse.IsZero() {
+					nextHealthPulse = now.Add(ota.HealthPulseInterval)
+				}
+				next := nextHealthPulse
+				if healthObservationEnds.Before(next) {
+					next = healthObservationEnds
+				}
+				gtx.Execute(op.InvalidateCmd{At: next})
+			}
 			event.Frame(gtx.Ops)
 			if !healthReported {
 				healthReported = true
 				if err := ota.MarkHealthy(); err != nil {
 					log.Print("startup handshake: ", err)
 				}
+				nextHealthPulse = time.Now().Add(ota.HealthPulseInterval)
+				healthObservationEnds = time.Now().Add(ota.HealthObservationWindow)
 			}
 		}
 	}

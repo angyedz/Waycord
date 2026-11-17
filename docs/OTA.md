@@ -9,11 +9,11 @@
 3. Canonicalize the fixed Go `Payload` struct using `encoding/json.Marshal` and verify its Ed25519 signature against a **trusted** 32-byte public key. Never trust a key fetched from the same manifest.
 4. Download the named raw executable over HTTPS (bounded to the signed size, max 300 MiB), checking the exact byte length and SHA-256 hash before installation.
 5. Copy into `<install>/versions/vX.Y.Z/waycord[.exe]` and stage the new version in a small redundant state store. Existing builds are never overwritten.
-6. On `waycord-updater launch`, the candidate must signal first-frame readiness via a random launcher challenge within 15 seconds. Otherwise the pending version is discarded and the previous build launches. After successful readiness, the new version becomes current.
+6. On `waycord-updater launch`, the candidate must signal first-frame readiness via a random launcher challenge within 15 seconds. During the next 10 seconds, the GUI event loop sends a heartbeat once per second. An early exit or three seconds without a heartbeat rejects the candidate; only after the full observation window does the new version become current.
 
 Two checksummed state slots are alternated (`state-0.json`, `state-1.json`), so a torn write doesn't destroy both records. This is **crash recovery**, not anti-tamper protection against another process running as the same user. Never run the updater with elevated permissions. The launcher should eventually use an interprocess lock for concurrent executions and package-manager integrations.
 
-**Limitations:** successful first-frame health does not guarantee long-term stability; updater self-updates, post-launch crash rollback windows, transaction locks, installation UI, Windows code-signing and full end-to-end signed-release CI are future work. Retaining previous versions consumes some disk. Do not use this to overwrite files managed by a distro package manager.
+**Limitations:** the heartbeat detects a stalled GUI event loop during the observation window, but cannot detect every internal UI failure or crashes after those 10 seconds. A slow or suspended desktop can also miss heartbeats and cause a conservative rollback. Updater self-updates, longer-term crash recovery, transaction locks, installation UI, Windows code-signing and full end-to-end signed-release CI are future work. Retaining previous versions consumes some disk. Do not use this to overwrite files managed by a distro package manager.
 
 ## Release manifest format
 
