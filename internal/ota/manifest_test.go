@@ -69,6 +69,8 @@ func TestPayloadValidation(t *testing.T) {
 		{"huge", func(p *Payload) { p.Size = MaxArtifactSize + 1 }},
 		{"wrong-platform", func(p *Payload) { p.OS = "osx" }},
 		{"bad-channel", func(p *Payload) { p.Channel = "beta" }},
+		{"overflow-major", func(p *Payload) { p.Version = "v18446744073709551616.0.0" }},
+		{"overflow-serial", func(p *Payload) { p.Channel = "beta"; p.Version = "v1.0.0-beta.18446744073709551616" }},
 		{"bad-digest", func(p *Payload) { p.SHA256 = "bad" }},
 	}
 	for _, tc := range cases {
@@ -102,5 +104,8 @@ func TestVersionOrder(t *testing.T) {
 	}
 	if _, err := IsNewer("broken", "v1.0.0"); err == nil {
 		t.Fatal("invalid version accepted")
+	}
+	if _, err := IsNewer("v1.0.0-beta.18446744073709551616", "v1.0.0-beta.1"); err == nil {
+		t.Fatal("overflowing prerelease serial accepted")
 	}
 }

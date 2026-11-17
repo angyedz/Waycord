@@ -28,7 +28,11 @@ func parseVersion(s string) (parts, error) {
 	if len(segments) == 2 {
 		suffix := strings.Split(segments[1], ".")
 		v.stage = suffix[0]
-		v.serial, _ = strconv.ParseUint(suffix[1], 10, 64)
+		var err error
+		v.serial, err = strconv.ParseUint(suffix[1], 10, 64)
+		if err != nil {
+			return parts{}, fmt.Errorf("invalid prerelease serial: %w", err)
+		}
 	}
 	return v, nil
 }
