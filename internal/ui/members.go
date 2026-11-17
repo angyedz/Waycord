@@ -27,6 +27,11 @@ type memberRoleGroup struct {
 
 // slidingMembers only lays out the member list while it is visible or moving.
 func (a *App) slidingMembers(progress float32) layout.Widget {
+	if progress <= 0 {
+		return func(gtx layout.Context) layout.Dimensions {
+			return layout.Dimensions{Size: image.Pt(0, gtx.Constraints.Max.Y)}
+		}
+	}
 	return fixedWidth(unit.Dp(210*progress), func(gtx layout.Context) layout.Dimensions {
 		visible, full := gtx.Constraints.Max.X, gtx.Dp(210)
 		area := clip.Rect{Max: image.Pt(visible, gtx.Constraints.Max.Y)}.Push(gtx.Ops)

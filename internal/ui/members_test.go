@@ -1,10 +1,43 @@
 package ui
 
 import (
+	"image"
 	"testing"
+
+	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/unit"
 
 	"github.com/angyedz/Waycord/internal/ui/mock"
 )
+
+func TestHiddenMembersPanelSkipsItsLayout(t *testing.T) {
+	app := New()
+	app.memberList.Axis = layout.Horizontal
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Constraints: layout.Constraints{Max: image.Pt(500, 700)}}
+	dimensions := app.slidingMembers(0)(gtx)
+	if dimensions.Size != image.Pt(0, 700) {
+		t.Fatalf("hidden member panel size = %v, want 0x700", dimensions.Size)
+	}
+	if app.memberList.Axis != layout.Horizontal {
+		t.Fatal("hidden member panel still laid out and mutated the virtualized list")
+	}
+}
+
+func TestVisibleMembersPanelUsesVirtualizedVerticalList(t *testing.T) {
+	app := New()
+	app.memberList.Axis = layout.Horizontal
+	var ops op.Ops
+	gtx := layout.Context{
+		Ops: &ops, Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: layout.Constraints{Max: image.Pt(500, 700)},
+	}
+	app.slidingMembers(1)(gtx)
+	if app.memberList.Axis != layout.Vertical {
+		t.Fatal("visible member panel did not lay out its virtualized vertical list")
+	}
+}
 
 func TestMemberEntriesGroupByServerRole(t *testing.T) {
 	members := []mock.Member{
