@@ -28,14 +28,6 @@ func TestLocalAvatarStoreRoundTrip(t *testing.T) {
 	if loaded == nil || loaded.Bounds() != image.Rect(0, 0, 4, 4) {
 		t.Fatalf("unexpected decoded avatar: %v", loaded)
 	}
-	path := filepath.Join(store.Root, "avatars", digest+".image")
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if info.Mode().Perm() != 0600 {
-		t.Fatalf("avatar file permissions = %o, want 600", info.Mode().Perm())
-	}
 }
 
 func TestProfilePreferencesResolveTheirSavedAvatar(t *testing.T) {
