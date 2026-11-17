@@ -27,6 +27,11 @@ func padding(p layout.Inset, child layout.Widget) layout.Widget {
 }
 func hspace(x unit.Dp) layout.FlexChild { return layout.Rigid(layout.Spacer{Width: x}.Layout) }
 func vspace(x unit.Dp) layout.FlexChild { return layout.Rigid(layout.Spacer{Height: x}.Layout) }
+func horizontalDivider(gtx layout.Context, col color.NRGBA) layout.Dimensions {
+	size := image.Pt(gtx.Constraints.Max.X, max(1, gtx.Dp(1)))
+	paint.FillShape(gtx.Ops, col, clip.Rect{Max: size}.Op())
+	return layout.Dimensions{Size: size}
+}
 func fixedWidth(x unit.Dp, child layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		w := gtx.Dp(x)

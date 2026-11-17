@@ -45,7 +45,7 @@ func TestServerFeatureActionsUpdateOnlyLocalState(t *testing.T) {
 func TestServerFeatureNavigationOpensAndReturnsToChat(t *testing.T) {
 	app := New()
 	clickButton(t, app, func(gtx layout.Context) layout.Dimensions {
-		return app.clickLabel(gtx, &app.serverFeatureButtons[0][serverFeatureEvents], "Events", false)
+		return app.serverFeatureRow(gtx, serverFeatureEvents)
 	})
 	if app.activeServerFeature != serverFeatureEvents {
 		t.Fatalf("events row did not open its screen: %d", app.activeServerFeature)

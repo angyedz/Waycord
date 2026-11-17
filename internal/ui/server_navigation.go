@@ -40,7 +40,11 @@ func (a *App) serverChannelsLayout(gtx layout.Context) layout.Dimensions {
 		server := mock.Servers[serverIndex]
 		children := a.serverFeatureRows()
 		if len(children) > 0 {
-			children = append(children, vspace(8))
+			children = append(children,
+				vspace(5),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return horizontalDivider(gtx, a.palette.Border) }),
+				vspace(8),
+			)
 		}
 		addChannel := func(index int) {
 			if index < 0 || index >= len(server.Channels) || index >= len(a.channelButtons[serverIndex]) {

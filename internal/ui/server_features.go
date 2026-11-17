@@ -3,8 +3,10 @@ package ui
 import (
 	"fmt"
 
+	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/widget/material"
+	"golang.org/x/exp/shiny/materialdesign/icons"
 
 	"github.com/angyedz/Waycord/internal/ui/mock"
 )
@@ -20,6 +22,7 @@ const (
 )
 
 var serverFeatureNames = [...]string{"Server guide", "Events", "Channels & roles", "Server boosts"}
+var serverFeatureIconData = [...][]byte{icons.ActionHelp, icons.ActionEvent, icons.SocialPeople, icons.ActionStars}
 
 func availableServerFeatures(server mock.Server) []int {
 	features := make([]int, 0, serverFeatureCount)
@@ -72,12 +75,34 @@ func (a *App) serverFeatureRows() []layout.FlexChild {
 		feature := feature
 		children = append(children,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return a.clickLabel(gtx, &a.serverFeatureButtons[a.activeServer][feature], serverFeatureNames[feature], a.activeServerFeature == feature)
+				return a.serverFeatureRow(gtx, feature)
 			}),
 			vspace(3),
 		)
 	}
 	return children
+}
+
+func (a *App) serverFeatureRow(gtx layout.Context, feature int) layout.Dimensions {
+	button := &a.serverFeatureButtons[a.activeServer][feature]
+	selected := a.activeServerFeature == feature
+	background, foreground := a.palette.Sidebar, a.palette.Muted
+	if selected {
+		background, foreground = a.palette.AccentDim, a.palette.Text
+	}
+	background = a.interactionColor(gtx, button, background, a.palette.Surface2)
+	return button.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		semantic.LabelOp(serverFeatureNames[feature]).Add(gtx.Ops)
+		return rounded(gtx, background, 18, padding(layout.Inset{Left: 12, Right: 10, Top: 8, Bottom: 8}, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(fixedWidth(18, func(gtx layout.Context) layout.Dimensions {
+					return a.serverFeatureIcons[feature].Layout(gtx, foreground)
+				})),
+				hspace(10),
+				layout.Flexed(1, a.text(serverFeatureNames[feature], 13, foreground)),
+			)
+		}))
+	})
 }
 
 func (a *App) serverFeatureScreen(gtx layout.Context) layout.Dimensions {

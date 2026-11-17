@@ -50,6 +50,7 @@ type App struct {
 	directButton, contactButton            widget.Clickable
 	serverButtons                          []widget.Clickable
 	serverFeatureButtons                   [][]widget.Clickable
+	serverFeatureIcons                     [serverFeatureCount]*widget.Icon
 	guideStepButtons                       [][]widget.Clickable
 	eventInterestButtons                   [][]widget.Clickable
 	activeServerFeature                    int
@@ -183,6 +184,9 @@ func New() *App {
 	a.eventInterestButtons = make([][]widget.Clickable, len(mock.Servers))
 	a.guideCompleted = make(map[string]bool)
 	a.eventInterested = make(map[string]bool)
+	for feature, source := range serverFeatureIconData {
+		a.serverFeatureIcons[feature], _ = widget.NewIcon(source)
+	}
 	a.serverChannels = make([]int, len(mock.Servers))
 	a.channelButtons = make([][]widget.Clickable, len(mock.Servers))
 	for i, server := range mock.Servers {
