@@ -33,6 +33,9 @@ func (a *App) processSelfProfile(gtx layout.Context) {
 		a.selfProfileEditing = false
 	}
 	if a.selfProfileEditing {
+		if a.selfAvatarButton.Clicked(gtx) {
+			a.beginSelfAvatarSelection()
+		}
 		for {
 			if _, ok := a.selfProfileNameEditor.Update(gtx); !ok {
 				break
@@ -153,13 +156,7 @@ func (a *App) selfProfileCard(gtx layout.Context) layout.Dimensions {
 			children := []layout.FlexChild{
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return fixedWidth(56, fixedHeight(56, func(gtx layout.Context) layout.Dimensions {
-								return rounded(gtx, a.palette.AccentDim, 28, func(gtx layout.Context) layout.Dimensions {
-									return layout.Center.Layout(gtx, a.text(firstLetter(a.selfProfileName), 22, a.palette.Text))
-								})
-							}))(gtx)
-						}),
+						layout.Rigid(a.profileAvatar(56, 22)),
 						hspace(12),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -219,7 +216,25 @@ func (a *App) selfProfileEditor(gtx layout.Context) layout.Dimensions {
 	}
 	children := []layout.FlexChild{
 		layout.Rigid(a.text("Edit profile", 19, a.palette.Text)),
-		vspace(12),
+		vspace(10),
+	}
+	if a.chooseSelfAvatar != nil {
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			label := "Change photo"
+			if a.selfAvatarBusy {
+				label = "Choosing…"
+			}
+			return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(a.profileAvatar(48, 18)),
+				hspace(10),
+				layout.Flexed(1, a.text("Profile photo", 13, a.palette.Muted)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return a.pill(gtx, &a.selfAvatarButton, label, false)
+				}),
+			)
+		}), vspace(8))
+	}
+	children = append(children,
 		layout.Rigid(a.text("Display name", 12, a.palette.Subtle)),
 		vspace(4),
 		layout.Rigid(field(&a.selfProfileNameEditor, "Name")),
@@ -236,9 +251,12 @@ func (a *App) selfProfileEditor(gtx layout.Context) layout.Dimensions {
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.pill(gtx, &a.selfProfileSaveButton, "Save", true) }),
 			)
 		}),
-	}
+	)
 	if a.selfProfileError != "" {
 		children = append(children, vspace(8), layout.Rigid(a.text(a.selfProfileError, 12, a.palette.Warning)))
+	}
+	if a.selfAvatarError != "" {
+		children = append(children, vspace(6), layout.Rigid(a.text(a.selfAvatarError, 12, a.palette.Warning)))
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 }

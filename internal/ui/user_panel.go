@@ -14,11 +14,7 @@ func (a *App) userPanel(gtx layout.Context, expanded bool) layout.Dimensions {
 					return a.selfProfileButton.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return rounded(gtx, background, 10, func(gtx layout.Context) layout.Dimensions {
 							return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
-								layout.Rigid(fixedWidth(32, fixedHeight(32, func(gtx layout.Context) layout.Dimensions {
-									return rounded(gtx, a.palette.AccentDim, 16, func(gtx layout.Context) layout.Dimensions {
-										return layout.Center.Layout(gtx, a.text(firstLetter(a.selfProfileName), 13, a.palette.Text))
-									})
-								}))), hspace(8),
+								layout.Rigid(a.profileAvatar(32, 13)), hspace(8),
 								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 									status := selfPresenceNames[a.selfPresence]
 									if a.voice.Connected {

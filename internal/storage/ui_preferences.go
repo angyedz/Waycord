@@ -21,6 +21,7 @@ type UIPreferences struct {
 	DisplayName     string `json:"display_name,omitempty"`
 	CustomStatus    string `json:"custom_status,omitempty"`
 	Presence        int    `json:"presence,omitempty"`
+	AvatarDigest    string `json:"avatar_digest,omitempty"`
 }
 
 type uiPreferencesEnvelope struct {
@@ -44,7 +45,7 @@ func (s UIPreferencesStore) path(slot int) string {
 func validUIPreferences(p UIPreferences) bool {
 	validTheme := p.Theme == "dark" || p.Theme == "midnight" || p.Theme == "light"
 	profileUnset := p.DisplayName == "" && p.CustomStatus == "" && p.Presence == 0
-	return validTheme && (profileUnset || validLocalProfile(p.DisplayName, p.CustomStatus, p.Presence))
+	return validTheme && validAvatarDigest(p.AvatarDigest) && (profileUnset || validLocalProfile(p.DisplayName, p.CustomStatus, p.Presence))
 }
 
 func uiPreferencesDigest(generation uint64, p UIPreferences) string {
@@ -183,6 +184,35 @@ func (s UIPreferencesStore) SaveProfile(displayName, customStatus string, presen
 	current.CustomStatus = customStatus
 	current.Presence = presence
 	return s.Save(current)
+}
+
+// SaveAvatarDigest merges the content-addressed profile image into the existing
+// preferences without overwriting appearance or profile fields.
+func (s UIPreferencesStore) SaveAvatarDigest(digest string) error {
+	if !validAvatarDigest(digest) {
+		return errors.New("invalid avatar digest")
+	}
+	current, err := s.loadForUpdate()
+	if err != nil {
+		return err
+	}
+	current.AvatarDigest = digest
+	return s.Save(current)
+}
+
+func validAvatarDigest(digest string) bool {
+	if digest == "" {
+		return true
+	}
+	if len(digest) != 64 {
+		return false
+	}
+	for _, char := range digest {
+		if !(char >= '0' && char <= '9' || char >= 'a' && char <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func (s UIPreferencesStore) loadForUpdate() (UIPreferences, error) {

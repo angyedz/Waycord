@@ -89,6 +89,37 @@ func TestUIPreferencesStoreRejectsInvalidLocalProfile(t *testing.T) {
 	}
 }
 
+func TestUIPreferencesStorePersistsAvatarDigestAlongsideProfileAndAppearance(t *testing.T) {
+	store := UIPreferencesStore{Root: t.TempDir()}
+	if err := store.SaveProfile("Mira", "At lunch", 1); err != nil {
+		t.Fatal(err)
+	}
+	digest := strings.Repeat("a", 64)
+	if err := store.SaveAvatarDigest(digest); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveAppearance(UIPreferences{Theme: "midnight", CompactMessages: true}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := UIPreferences{Theme: "midnight", CompactMessages: true, DisplayName: "Mira", CustomStatus: "At lunch", Presence: 1, AvatarDigest: digest}
+	if got != want {
+		t.Fatalf("avatar digest was not merged with other preferences: got %+v, want %+v", got, want)
+	}
+}
+
+func TestUIPreferencesStoreRejectsInvalidAvatarDigest(t *testing.T) {
+	store := UIPreferencesStore{Root: t.TempDir()}
+	for _, digest := range []string{"../avatar.png", "not-a-digest", strings.Repeat("a", 63), strings.Repeat("z", 64)} {
+		if err := store.SaveAvatarDigest(digest); err == nil {
+			t.Errorf("accepted invalid avatar digest %q", digest)
+		}
+	}
+}
+
 func TestUIPreferencesStoreLoadsPreferencesWrittenBeforeLocalProfileFields(t *testing.T) {
 	store := UIPreferencesStore{Root: t.TempDir()}
 	legacy := UIPreferences{Theme: "dark", CompactMessages: true}

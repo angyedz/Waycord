@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"image"
 	"log"
 	"os"
 	"path/filepath"
@@ -33,7 +34,7 @@ func run() error {
 	w.Option(app.Title("Waycord"), app.Size(unit.Dp(1100), unit.Dp(740)), app.MinSize(unit.Dp(800), unit.Dp(540)))
 	view := ui.New()
 	chooser := explorer.NewExplorer(w)
-	view.ConfigureAttachments(func() (*attachments.Attachment, error) {
+	chooseFile := func() (*attachments.Attachment, error) {
 		file, err := chooser.ChooseFile()
 		if errors.Is(err, explorer.ErrUserDecline) {
 			return nil, nil
@@ -47,7 +48,8 @@ func run() error {
 			name = named.Name()
 		}
 		return attachments.Read(name, file)
-	})
+	}
+	view.ConfigureAttachments(chooseFile)
 	if configDir, err := os.UserConfigDir(); err != nil {
 		log.Print("Waycord update preferences: ", err)
 	} else {
@@ -70,8 +72,23 @@ func run() error {
 		if profileName == "" {
 			profileName, profileStatus, presence = "angyedz", "On a break", 3
 		}
+		var profileAvatar image.Image
+		avatarStore := storage.LocalAvatarStore{Root: filepath.Join(configDir, "waycord")}
+		if uiPreferences.AvatarDigest != "" {
+			profileAvatar, err = avatarStore.Load(uiPreferences.AvatarDigest)
+			if err != nil {
+				log.Print("Waycord profile avatar: ", err)
+			}
+		}
 		view.ConfigureLocalProfile(profileName, profileStatus, presence, func(name, status string, presence int) error {
 			return uiStore.SaveProfile(name, status, presence)
+		})
+		view.ConfigureLocalAvatar(profileAvatar, chooseFile, func(data []byte) error {
+			digest, err := avatarStore.Save(data)
+			if err != nil {
+				return err
+			}
+			return uiStore.SaveAvatarDigest(digest)
 		})
 		view.ConfigureUIPreferences(uiPreferences.Theme, uiPreferences.CompactMessages, uiPreferences.ReduceMotion, func(theme string, compactMessages, reduceMotion bool) error {
 			return uiStore.SaveAppearance(storage.UIPreferences{Theme: theme, CompactMessages: compactMessages, ReduceMotion: reduceMotion})

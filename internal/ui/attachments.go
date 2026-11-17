@@ -52,7 +52,7 @@ func (a *App) conversationKey() string {
 }
 
 func (a *App) beginAttachmentSelection() {
-	if a.attachmentBusy || a.chooseAttachment == nil {
+	if a.attachmentBusy || a.selfAvatarBusy || a.chooseAttachment == nil {
 		return
 	}
 	a.attachmentBusy = true

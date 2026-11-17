@@ -8,7 +8,7 @@ The Markdown renderer supports spoiler reveal on click; Discord embeds and serve
 
 ## Current scope
 
-- Native, GPU-rendered UI with server rail, server-defined categories, conditional guide/events/roles/boost sections, local chat, channel search and pins, replies, message edit/delete, reactions, an optional member panel, editable local profile, voice controls, and local emoji/GIF/sticker/file attachments.
+- Native, GPU-rendered UI with server rail, server-defined categories, conditional guide/events/roles/boost sections, local chat, channel search and pins, replies, message edit/delete, reactions, an optional member panel, editable local profile with a saved avatar, voice controls, and local emoji/GIF/sticker/file attachments.
 - Appearance and performance settings for dark/midnight/light themes, compact messages and reduced motion; preferences are stored in recoverable user-scoped files.
 - Rich, selectable message text with bold, italic, code, headings, quotes, lists, links, underline, strikethrough and click-to-reveal spoilers. Links open only after a click and use the OS handler.
 - Independent updater with Ed25519 signed manifests, SHA-256 verification, versioned binary slots, and startup-health rollback.
@@ -45,6 +45,7 @@ cmd/
 internal/
   core/                 # platform-independent message, reaction, voice and attachment rules
   protocol/             # message service interfaces only; no Discord transport or auth
+  storage/              # recoverable preferences and validated local profile avatars
   ui/                   # presentation layer (no Discord network code)
     theme/              # palette design tokens
     mock/               # explicitly offline demo data

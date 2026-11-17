@@ -19,7 +19,7 @@ internal/protocol/    message-service contracts only; transport/authentication a
 internal/security/    system keyring, authorization and secret redaction
 internal/media/       voice, DAVE, camera, streaming
 internal/platform/    Linux / Windows capture, notifications, integration
-internal/storage/     database, bounded media cache, migrations
+internal/storage/     implemented preferences and local avatar storage; database and migrations remain future work
 ```
 
 The core currently contains platform-independent message rules, reaction state,

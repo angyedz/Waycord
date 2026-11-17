@@ -12,6 +12,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"golang.org/x/exp/shiny/materialdesign/icons"
@@ -91,6 +92,14 @@ type App struct {
 	selfProfileStatus                      string
 	saveLocalProfile                       func(string, string, int) error
 	selfProfileError                       string
+	selfAvatar                             image.Image
+	selfAvatarOp                           paint.ImageOp
+	selfAvatarButton                       widget.Clickable
+	chooseSelfAvatar                       func() (*attachments.Attachment, error)
+	saveSelfAvatar                         func([]byte) error
+	selfAvatarResults                      chan selfAvatarResult
+	selfAvatarBusy                         bool
+	selfAvatarError                        string
 	voiceServer, voiceChannel              string
 	micIcon, micOffIcon, headsetIcon       *widget.Icon
 	videoIcon, videoOffIcon                *widget.Icon
@@ -173,7 +182,7 @@ type App struct {
 }
 
 func New() *App {
-	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, contextShown: -1, replyTarget: -1, activeServerFeature: serverFeatureNone, palette: theme.Dark, themeName: "dark", activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}, updateChannel: "stable", updateResult: make(chan updateCheckResult, 1), updateSignals: make(chan struct{}, 1), updateChecker: ota.GitHubSource{Owner: "angyedz", Repository: "Waycord"}, updateCtx: context.Background(), selfProfileName: "angyedz", selfProfileUsername: "angyedz", selfProfileStatus: "On a break"}
+	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, contextShown: -1, replyTarget: -1, activeServerFeature: serverFeatureNone, palette: theme.Dark, themeName: "dark", activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}, updateChannel: "stable", updateResult: make(chan updateCheckResult, 1), updateSignals: make(chan struct{}, 1), updateChecker: ota.GitHubSource{Owner: "angyedz", Repository: "Waycord"}, updateCtx: context.Background(), selfProfileName: "angyedz", selfProfileUsername: "angyedz", selfProfileStatus: "On a break", selfAvatarResults: make(chan selfAvatarResult, 1)}
 	a.editTarget, a.deleteTarget = -1, -1
 	a.selfPresence = 3
 	a.theme = material.NewTheme()
@@ -248,6 +257,7 @@ func New() *App {
 
 func (a *App) process(gtx layout.Context) {
 	a.processAttachmentResults()
+	a.processSelfAvatarResult()
 	a.processUpdateChecks()
 	a.processContextMenu(gtx)
 	if a.processDeleteConfirmation(gtx) {
