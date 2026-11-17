@@ -10,6 +10,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/widget"
 
+	coremessages "github.com/angyedz/Waycord/internal/core/messages"
 	"github.com/angyedz/Waycord/internal/ui/mock"
 )
 
@@ -84,7 +85,7 @@ func (a *App) contextMenu(gtx layout.Context) layout.Dimensions {
 			children := []layout.FlexChild{
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.contextItem(gtx, &a.contextReply, "Reply") }),
 			}
-			if message != nil && canEditMessage(*message) {
+			if message != nil && coremessages.CanEdit(*message) {
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.contextItem(gtx, &a.contextEdit, "Edit message") }))
 			}
 			children = append(children,
@@ -113,14 +114,10 @@ func (a *App) contextMessage() *mock.Message {
 	return &a.messages[index]
 }
 
-func canEditMessage(message mock.Message) bool {
-	return message.Self && strings.TrimSpace(message.Body) != "" && message.Attachment == nil && message.Media == nil
-}
-
 func (a *App) contextMenuHeight() int {
 	message := a.contextMessage()
 	height := 144
-	if message != nil && canEditMessage(*message) {
+	if message != nil && coremessages.CanEdit(*message) {
 		height += 36
 	}
 	if message != nil && message.Self {

@@ -97,3 +97,104 @@ func TestDiscordStrikeAndUnderlineSkipInlineCode(t *testing.T) {
 		t.Fatalf("Discord delimiters were not rendered correctly: %+v", spans)
 	}
 }
+
+func TestDiscordSpoilersAreMarkedAndKeepNestedFormatting(t *testing.T) {
+	renderer := New("Waycord Sans", color.NRGBA{A: 255}, color.NRGBA{B: 255, A: 255})
+	spans, err := renderer.Render("before ||hidden **bold**|| after")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var before, hidden, bold, after bool
+	var spoilerID int
+	for _, span := range spans {
+		switch strings.TrimSpace(span.Style.Content) {
+		case "before":
+			before = !span.Spoiler
+		case "hidden":
+			hidden = span.Spoiler
+			spoilerID = span.SpoilerID
+		case "bold":
+			bold = span.Spoiler && span.Style.Font.Weight == font.Bold && span.SpoilerID == spoilerID
+		case "after":
+			after = !span.Spoiler
+		}
+	}
+	if !before || !hidden || !bold || !after || spoilerID < 0 {
+		t.Fatalf("spoiler content or nested formatting was lost: %+v", spans)
+	}
+	if got := PlainText(spans); got != "before hidden bold after" {
+		t.Fatalf("spoiler text must remain selectable: %q", got)
+	}
+}
+
+func TestDiscordSpoilerDelimiterIsLiteralWhenUnmatchedOrEscaped(t *testing.T) {
+	renderer := New("Waycord Sans", color.NRGBA{A: 255}, color.NRGBA{B: 255, A: 255})
+	spans, err := renderer.Render("||unfinished\n\\||literal\\||")
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain := PlainText(spans)
+	if !strings.Contains(plain, "||unfinished") || !strings.Contains(plain, "||literal||") {
+		t.Fatalf("unmatched or escaped spoiler delimiters disappeared: %q", plain)
+	}
+	for _, span := range spans {
+		if span.Spoiler {
+			t.Fatalf("unmatched or escaped spoiler was activated: %+v", span)
+		}
+	}
+}
+
+func TestDiscordSpoilerDelimiterIsIgnoredInsideCode(t *testing.T) {
+	renderer := New("Waycord Sans", color.NRGBA{A: 255}, color.NRGBA{B: 255, A: 255})
+	spans, err := renderer.Render("`||inline||`\n\n```\n||fenced||\n```")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := PlainText(spans); !strings.Contains(got, "||inline||") || !strings.Contains(got, "||fenced||") {
+		t.Fatalf("code delimiters were altered: %q", got)
+	}
+	for _, span := range spans {
+		if span.Spoiler {
+			t.Fatalf("code content was marked as a spoiler: %+v", span)
+		}
+	}
+}
+
+func TestDisplayStylesMaskSpoilersUntilRevealed(t *testing.T) {
+	mask := color.NRGBA{R: 100, G: 100, B: 110, A: 255}
+	renderer := New("Waycord Sans", color.NRGBA{A: 255}, color.NRGBA{B: 255, A: 255})
+	spans, err := renderer.Render("public ||secret **phrase**||")
+	if err != nil {
+		t.Fatal(err)
+	}
+	masked := strings.Builder{}
+	styles := DisplayStyles(spans, nil, mask)
+	for i, span := range spans {
+		if span.Spoiler {
+			masked.WriteString(styles[i].Content)
+			if strings.Contains(styles[i].Content, "secret") || strings.Contains(styles[i].Content, "phrase") {
+				t.Fatalf("unrevealed spoiler text is visible: %+v", styles[i])
+			}
+			if styles[i].Color != mask || !styles[i].Interactive {
+				t.Fatalf("spoiler mask lost its appearance or click target: %+v", styles[i])
+			}
+		}
+	}
+	if strings.Contains(masked.String(), "secret") || PlainText(spans) != "public secret phrase" {
+		t.Fatalf("masking should hide only the display copy while preserving selectable content: masked=%q plain=%q", masked.String(), PlainText(spans))
+	}
+	revealed := map[int]bool{0: true}
+	styles = DisplayStyles(spans, revealed, mask)
+	var visible string
+	for i, span := range spans {
+		if span.Spoiler {
+			visible += styles[i].Content
+			if styles[i].Color == mask || !strings.Contains(styles[i].Content, "secret") && !strings.Contains(styles[i].Content, "phrase") {
+				t.Fatalf("revealed spoiler remained masked: %+v", styles[i])
+			}
+		}
+	}
+	if visible != "secret phrase" {
+		t.Fatalf("revealed content changed: %q", visible)
+	}
+}

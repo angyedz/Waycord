@@ -4,16 +4,16 @@
 
 > **Development status:** UI is currently an **offline design preview** with local fixture messages. No Discord login, messaging, calls, or screen sharing are implemented. Update settings can inspect signed GitHub Releases when a trusted public key is supplied to the build; this repository has no release signing key or published releases. Waycord is not affiliated with Discord Inc. and unofficial user clients may violate Discord's terms and carry account restrictions.
 
-The current Markdown renderer does not yet support Discord spoilers or embeds.
+The Markdown renderer supports spoiler reveal on click; Discord embeds and server-provided rich media are not available in the offline preview.
 
 ## Current scope
 
-- Native, GPU-rendered UI with server rail, server-defined categories, conditional guide/events/roles/boost sections, local chat, channel search and pins, replies, an optional member panel, editable local profile, voice controls, and local emoji/GIF/sticker choices.
+- Native, GPU-rendered UI with server rail, server-defined categories, conditional guide/events/roles/boost sections, local chat, channel search and pins, replies, message edit/delete, reactions, an optional member panel, editable local profile, voice controls, and local emoji/GIF/sticker/file attachments.
 - Appearance and performance settings for dark/midnight/light themes, compact messages and reduced motion; preferences are stored in recoverable user-scoped files.
-- Rich, selectable message text with bold, italic, code, headings, quotes, lists, links, underline and strikethrough formatting. Links open only after a click and use the OS handler.
+- Rich, selectable message text with bold, italic, code, headings, quotes, lists, links, underline, strikethrough and click-to-reveal spoilers. Links open only after a click and use the OS handler.
 - Independent updater with Ed25519 signed manifests, SHA-256 verification, versioned binary slots, and startup-health rollback.
 - Update settings for stable, beta and nightly channels, with persisted automatic-check preference and signed GitHub release discovery.
-- Separate Go packages for UI, theme tokens, test fixtures, update engine, signing utility, and launcher.
+- Separate Go packages for UI, theme tokens, test fixtures, platform-independent message rules, the future protocol boundary, update engine, signing utility, and launcher.
 - CI builds/tests for Linux and Windows.
 
 ## Build and run
@@ -43,6 +43,8 @@ cmd/
   waycord-updater/      # standalone update checker, installer and launcher
   waycord-sign/         # offline release signing utility
 internal/
+  core/                 # platform-independent message, reaction, voice and attachment rules
+  protocol/             # message service interfaces only; no Discord transport or auth
   ui/                   # presentation layer (no Discord network code)
     theme/              # palette design tokens
     mock/               # explicitly offline demo data

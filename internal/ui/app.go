@@ -17,6 +17,7 @@ import (
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
 	"github.com/angyedz/Waycord/internal/core/attachments"
+	coremessages "github.com/angyedz/Waycord/internal/core/messages"
 	"github.com/angyedz/Waycord/internal/core/reactions"
 	"github.com/angyedz/Waycord/internal/core/voicepreview"
 	"github.com/angyedz/Waycord/internal/ota"
@@ -450,12 +451,11 @@ func (a *App) sendPreview() {
 		if body == "" {
 			return
 		}
-		if a.editTarget >= len(a.messages) || !canEditMessage(a.messages[a.editTarget]) {
+		if a.editTarget >= len(a.messages) || !coremessages.Edit(a.messages, a.editTarget, body) {
 			a.cancelEdit()
 			return
 		}
-		a.messages[a.editTarget].Body = body
-		a.messages[a.editTarget].Edited = true
+		a.resetMessageTextState(a.editTarget)
 		a.cancelEdit()
 		a.messageList.ScrollToEnd = true
 		return

@@ -91,10 +91,31 @@ func PlainText(spans []Span) string {
 	return text.String()
 }
 
-func RichStyles(spans []Span) []richtext.SpanStyle {
+// DisplayStyles masks unrevealed spoilers while preserving their interactive
+// metadata and rune count so selectable text remains aligned with the rendered
+// message. The caller keeps the original spans for copying and selection.
+func DisplayStyles(spans []Span, revealed map[int]bool, mask color.NRGBA) []richtext.SpanStyle {
 	styles := make([]richtext.SpanStyle, len(spans))
-	for i := range spans {
-		styles[i] = spans[i].Style
+	for i, span := range spans {
+		style := span.Style.DeepCopy()
+		if span.Spoiler && !revealed[span.SpoilerID] {
+			style.Content = maskSpoiler(span.Style.Content)
+			style.Color = mask
+		}
+		styles[i] = style
 	}
 	return styles
+}
+
+func maskSpoiler(content string) string {
+	var masked strings.Builder
+	masked.Grow(len(content))
+	for _, char := range content {
+		if char == '\n' || char == '\r' || char == '\t' || char == ' ' {
+			masked.WriteRune(char)
+			continue
+		}
+		masked.WriteRune('•')
+	}
+	return masked.String()
 }

@@ -8,6 +8,7 @@ import (
 	"gioui.org/op"
 
 	"github.com/angyedz/Waycord/internal/core/attachments"
+	coremessages "github.com/angyedz/Waycord/internal/core/messages"
 	"github.com/angyedz/Waycord/internal/ui/mock"
 )
 
@@ -16,6 +17,7 @@ func TestEditOwnMessageAndRestoreComposerDraft(t *testing.T) {
 	target := 4
 	original := app.messages[target].Body
 	originalTime, originalSentAt := app.messages[target].Time, app.messages[target].SentAt
+	app.reactionWidget(target).spoilers = map[int]bool{0: true}
 	app.composer.SetText("draft before editing")
 	var ops op.Ops
 	gtx := layout.Context{Ops: &ops}
@@ -33,6 +35,9 @@ func TestEditOwnMessageAndRestoreComposerDraft(t *testing.T) {
 	}
 	if app.composer.Text() != "draft before editing" {
 		t.Fatalf("composer draft was not restored after saving the edit: %q", app.composer.Text())
+	}
+	if widget := app.reactionWidgets[target]; widget == nil || widget.spoilers != nil || len(widget.links.Spans) != 0 {
+		t.Fatal("editing a message retained stale spoiler or link interaction state")
 	}
 
 	app.composer.SetText("keep this draft")
@@ -71,8 +76,8 @@ func TestOnlyOwnTextMessagesExposeEditAction(t *testing.T) {
 		"own media":      {Author: "You", Self: true, Media: &mock.Media{Name: "wave", Emoji: "👋", Kind: mock.MediaGIF}},
 	} {
 		want := name == "own text"
-		if got := canEditMessage(message); got != want {
-			t.Errorf("canEditMessage(%s) = %t, want %t", name, got, want)
+		if got := coremessages.CanEdit(message); got != want {
+			t.Errorf("messages.CanEdit(%s) = %t, want %t", name, got, want)
 		}
 	}
 }

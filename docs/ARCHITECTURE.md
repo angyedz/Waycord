@@ -1,6 +1,6 @@
-# Waycord architecture (initial pass)
+# Waycord architecture
 
-Waycord targets **Linux and Windows as first-class platforms**. The core and UI should stay native, lean, and independently testable. The design and update system are the only working subsystems in this first PR.
+Waycord targets **Linux and Windows as first-class platforms**. The app is a native Gio offline preview with local UI state, reusable design tokens, platform-independent message/reaction/voice-preview rules, and a standalone signed updater. It does not connect to Discord.
 
 ## Non-negotiable boundaries
 
@@ -9,17 +9,23 @@ Waycord targets **Linux and Windows as first-class platforms**. The core and UI 
 3. `internal/ota` owns all update trust checks, version slots, state and rollback. It cannot touch authentication secrets.
 4. `cmd/waycord-sign` is an offline maintainer-only tool, never loaded into the application runtime.
 5. New features each get a narrow interface and their own package; don't create a general-purpose `utils` package.
+6. `internal/core/messages` owns message editing, deletion and reply-reference rules. It has no Gio or Discord dependency; the UI calls these rules and presents their result.
 
-## Proposed future modules (NOT IMPLEMENTED)
+## Implemented boundaries and future modules
 
 ```text
-internal/core/        application state and event bus
-internal/protocol/    authenticated transports and API boundaries
+internal/core/        platform-independent message, reaction, voice-preview and attachment rules
+internal/protocol/    message-service contracts only; transport/authentication are not implemented
 internal/security/    system keyring, authorization and secret redaction
 internal/media/       voice, DAVE, camera, streaming
 internal/platform/    Linux / Windows capture, notifications, integration
 internal/storage/     database, bounded media cache, migrations
 ```
+
+The core currently contains platform-independent message rules, reaction state,
+voice-preview state, and bounded attachment handling. `internal/protocol` defines
+the message service boundary without implementing a transport. The offline UI
+uses local fixtures and does not connect to Discord.
 
 The future GUI must only depend on application service interfaces, never on protocol implementation details. Keep full-resolution video frames out of Go's long-lived heap when possible, and budget CPU/RAM by feature. Media libraries load on demand.
 

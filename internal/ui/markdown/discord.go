@@ -8,15 +8,19 @@ import (
 )
 
 const (
-	strikeMarker    rune = '\ue000'
-	underlineMarker rune = '\ue001'
-	unmatchedStrike rune = '\ue002'
-	unmatchedUnder  rune = '\ue003'
+	strikeMarker     rune = '\ue000'
+	underlineMarker  rune = '\ue001'
+	unmatchedStrike  rune = '\ue002'
+	unmatchedUnder   rune = '\ue003'
+	spoilerMarker    rune = '\ue004'
+	unmatchedSpoiler rune = '\ue005'
 )
+
+const SpoilerKey = "waycord:spoiler"
 
 func preprocessDiscord(source string) string {
 	var out []rune
-	open := make(map[rune]int, 2)
+	open := make(map[rune]int, 3)
 	inlineTicks := 0
 	fenced := false
 	for i := 0; i < len(source); {
@@ -51,9 +55,14 @@ func preprocessDiscord(source string) string {
 			continue
 		}
 		if source[i] == '\\' {
+			if strings.HasPrefix(source[i+1:], "||") {
+				out = append(out, '|', '|')
+				i += 3
+				continue
+			}
 			out = append(out, '\\')
 			i++
-			if i < len(source) && (strings.HasPrefix(source[i:], "~~") || strings.HasPrefix(source[i:], "__")) {
+			if i < len(source) && (strings.HasPrefix(source[i:], "~~") || strings.HasPrefix(source[i:], "__") || strings.HasPrefix(source[i:], "||")) {
 				out = append(out, rune(source[i]), rune(source[i+1]))
 				i += 2
 			}
@@ -66,6 +75,8 @@ func preprocessDiscord(source string) string {
 			marker, delimiter = strikeMarker, "~~"
 		case strings.HasPrefix(source[i:], "__"):
 			marker, delimiter = underlineMarker, "__"
+		case strings.HasPrefix(source[i:], "||"):
+			marker, delimiter = spoilerMarker, "||"
 		}
 		if marker != 0 {
 			if _, exists := open[marker]; exists {
@@ -86,8 +97,10 @@ func preprocessDiscord(source string) string {
 	for marker, index := range open {
 		if marker == strikeMarker {
 			unmatched[index] = string(unmatchedStrike)
-		} else {
+		} else if marker == underlineMarker {
 			unmatched[index] = string(unmatchedUnder)
+		} else {
+			unmatched[index] = string(unmatchedSpoiler)
 		}
 	}
 	var result strings.Builder
@@ -105,38 +118,56 @@ type Span struct {
 	Style     richtext.SpanStyle
 	Strike    bool
 	Underline bool
+	Spoiler   bool
+	SpoilerID int
 }
 
 func applyDiscordDecorations(spans []richtext.SpanStyle) []Span {
 	active := make(map[rune]bool, 2)
 	var result []Span
+	activeSpoiler := -1
+	nextSpoilerID := 0
 	for _, span := range spans {
 		start := 0
 		for offset, marker := range span.Content {
-			if marker != strikeMarker && marker != underlineMarker && marker != unmatchedStrike && marker != unmatchedUnder {
+			if marker != strikeMarker && marker != underlineMarker && marker != unmatchedStrike && marker != unmatchedUnder && marker != spoilerMarker && marker != unmatchedSpoiler {
 				continue
 			}
-			appendStyledSpan(&result, span, span.Content[start:offset], active)
+			appendStyledSpan(&result, span, span.Content[start:offset], active, activeSpoiler)
 			switch marker {
 			case strikeMarker, underlineMarker:
 				active[marker] = !active[marker]
+			case spoilerMarker:
+				if activeSpoiler >= 0 {
+					activeSpoiler = -1
+				} else {
+					activeSpoiler = nextSpoilerID
+					nextSpoilerID++
+				}
 			case unmatchedStrike:
-				appendStyledSpan(&result, span, "~~", active)
+				appendStyledSpan(&result, span, "~~", active, activeSpoiler)
 			case unmatchedUnder:
-				appendStyledSpan(&result, span, "__", active)
+				appendStyledSpan(&result, span, "__", active, activeSpoiler)
+			case unmatchedSpoiler:
+				appendStyledSpan(&result, span, "||", active, activeSpoiler)
 			}
 			start = offset + utf8.RuneLen(marker)
 		}
-		appendStyledSpan(&result, span, span.Content[start:], active)
+		appendStyledSpan(&result, span, span.Content[start:], active, activeSpoiler)
 	}
 	return result
 }
 
-func appendStyledSpan(result *[]Span, source richtext.SpanStyle, content string, active map[rune]bool) {
+func appendStyledSpan(result *[]Span, source richtext.SpanStyle, content string, active map[rune]bool, spoilerID int) {
 	if content == "" {
 		return
 	}
 	span := source.DeepCopy()
 	span.Content = content
-	*result = append(*result, Span{Style: span, Strike: active[strikeMarker], Underline: active[underlineMarker]})
+	spoiler := spoilerID >= 0
+	if spoiler {
+		span.Interactive = true
+		span.Set(SpoilerKey, spoilerID)
+	}
+	*result = append(*result, Span{Style: span, Strike: active[strikeMarker], Underline: active[underlineMarker], Spoiler: spoiler, SpoilerID: spoilerID})
 }

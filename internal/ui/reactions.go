@@ -27,6 +27,7 @@ type reactionWidget struct {
 	existing   [len(emojiOptions)]widget.Clickable
 	picker     panelTransition
 	links      richtext.InteractiveText
+	spoilers   map[int]bool
 }
 
 func (a *App) reactionWidget(index int) *reactionWidget {

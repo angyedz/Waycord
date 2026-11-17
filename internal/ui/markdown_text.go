@@ -17,6 +17,13 @@ import (
 	uimarkdown "github.com/angyedz/Waycord/internal/ui/markdown"
 )
 
+func (a *App) resetMessageTextState(index int) {
+	if widget := a.reactionWidgets[index]; widget != nil {
+		widget.links = richtext.InteractiveText{}
+		widget.spoilers = nil
+	}
+}
+
 func (a *App) messageBody(gtx layout.Context, index int, source string) layout.Dimensions {
 	state := a.reactionWidget(index)
 	spans, err := a.messageMarkdown.Render(index, source)
@@ -30,7 +37,6 @@ func (a *App) messageBody(gtx layout.Context, index int, source string) layout.D
 	if plain == "" {
 		plain = source
 	}
-	styled := uimarkdown.RichStyles(spans)
 	for {
 		span, event, ok := state.links.Update(gtx)
 		if !ok {
@@ -41,9 +47,15 @@ func (a *App) messageBody(gtx layout.Context, index int, source string) layout.D
 				if err := platform.OpenURL(url); err != nil {
 					log.Print("open message link: ", err)
 				}
+			} else if spoilerID, ok := span.Get(uimarkdown.SpoilerKey).(int); ok {
+				if state.spoilers == nil {
+					state.spoilers = make(map[int]bool)
+				}
+				state.spoilers[spoilerID] = !state.spoilers[spoilerID]
 			}
 		}
 	}
+	styled := uimarkdown.DisplayStyles(spans, state.spoilers, a.palette.Subtle)
 	formatted := richtext.Text(&state.links, a.theme.Shaper, styled...).Layout(gtx)
 	decorations := make([]styledtext.SpanStyle, len(styled))
 	for index, span := range styled {

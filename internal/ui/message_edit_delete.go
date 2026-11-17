@@ -10,10 +10,12 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/widget/material"
+
+	coremessages "github.com/angyedz/Waycord/internal/core/messages"
 )
 
 func (a *App) beginEdit(gtx layout.Context, index int) bool {
-	if index < 0 || index >= len(a.messages) || !canEditMessage(a.messages[index]) {
+	if index < 0 || index >= len(a.messages) || !coremessages.CanEdit(a.messages[index]) {
 		return false
 	}
 	if a.editTarget >= 0 {
@@ -65,7 +67,7 @@ func (a *App) confirmDelete() {
 }
 
 func (a *App) deleteMessage(index int) bool {
-	if index < 0 || index >= len(a.messages) || !a.messages[index].Self {
+	if !coremessages.Delete(&a.messages, index) {
 		return false
 	}
 	if a.editTarget == index {
@@ -77,19 +79,6 @@ func (a *App) deleteMessage(index int) bool {
 		a.replyTarget = -1
 	} else if a.replyTarget > index {
 		a.replyTarget--
-	}
-	a.messages = append(a.messages[:index], a.messages[index+1:]...)
-	for message := range a.messages {
-		if !a.messages[message].HasReply {
-			continue
-		}
-		switch {
-		case a.messages[message].ReplyTo == index:
-			a.messages[message].HasReply = false
-			a.messages[message].ReplyTo = 0
-		case a.messages[message].ReplyTo > index:
-			a.messages[message].ReplyTo--
-		}
 	}
 	a.reactions.RemoveAndShift(index)
 	a.reactionWidgets = make(map[int]*reactionWidget)

@@ -5,38 +5,17 @@ package mock
 import (
 	"time"
 
-	"github.com/angyedz/Waycord/internal/core/attachments"
+	"github.com/angyedz/Waycord/internal/core/messages"
 )
 
-type Message struct {
-	Server     int
-	Channel    int
-	Author     string
-	Time       string
-	Body       string
-	Self       bool
-	Direct     bool
-	HasReply   bool
-	ReplyTo    int
-	Pinned     bool
-	Edited     bool
-	SentAt     time.Time
-	Attachment *attachments.Attachment
-	Media      *Media
-}
-
-type MediaKind uint8
+type Message = messages.Message
+type Media = messages.Media
+type MediaKind = messages.MediaKind
 
 const (
-	MediaGIF MediaKind = iota + 1
-	MediaSticker
+	MediaGIF     = messages.MediaGIF
+	MediaSticker = messages.MediaSticker
 )
-
-type Media struct {
-	Kind  MediaKind
-	Name  string
-	Emoji string
-}
 
 var Channels = []string{"general", "dev-chat", "showcase", "ideas"}
 
