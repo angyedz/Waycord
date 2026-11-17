@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"context"
+	"crypto/ed25519"
 	"image"
 	"strconv"
 	"strings"
@@ -16,6 +18,7 @@ import (
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
 	"github.com/angyedz/Waycord/internal/core/reactions"
+	"github.com/angyedz/Waycord/internal/ota"
 	uiMarkdown "github.com/angyedz/Waycord/internal/ui/markdown"
 	"github.com/angyedz/Waycord/internal/ui/mock"
 	"github.com/angyedz/Waycord/internal/ui/theme"
@@ -23,33 +26,50 @@ import (
 
 // App contains UI state only. Future protocol/media services stay outside it.
 type App struct {
-	palette                                    theme.Palette
-	theme                                      *material.Theme
-	messageMarkdown                            *uiMarkdown.Cache
-	channelButtons                             [4]widget.Clickable
-	chatButton, updatesButton, sendButton      widget.Clickable
-	directButton, serverButton, contactButton  widget.Clickable
-	sidebarButton, profileButton               widget.Clickable
-	sidebar                                    sidebarState
-	menuIcon                                   *widget.Icon
-	sendIcon                                   *widget.Icon
-	settingsIcon                               *widget.Icon
-	interactions                               map[*widget.Clickable]*interactionState
-	emojiIcon                                  *widget.Icon
-	emojiButton                                widget.Clickable
-	emojiChoices                               [8]widget.Clickable
-	emojiOpen                                  bool
-	emojiSlide                                 panelTransition
-	sendHover                                  float32
-	sendHoverTime                              time.Time
-	activeChannel                              int
-	updatesView                                bool
+	palette                                   theme.Palette
+	theme                                     *material.Theme
+	messageMarkdown                           *uiMarkdown.Cache
+	channelButtons                            [4]widget.Clickable
+	chatButton, updatesButton, sendButton     widget.Clickable
+	updateCheckButton, updateAutoButton       widget.Clickable
+	updateOpenButton                          widget.Clickable
+	updateChannelButtons                      [3]widget.Clickable
+	directButton, serverButton, contactButton widget.Clickable
+	sidebarButton, profileButton              widget.Clickable
+	sidebar                                   sidebarState
+	menuIcon                                  *widget.Icon
+	sendIcon                                  *widget.Icon
+	settingsIcon                              *widget.Icon
+	interactions                              map[*widget.Clickable]*interactionState
+	emojiIcon                                 *widget.Icon
+	emojiButton                               widget.Clickable
+	emojiChoices                              [8]widget.Clickable
+	emojiOpen                                 bool
+	emojiSlide                                panelTransition
+	sendHover                                 float32
+	sendHoverTime                             time.Time
+	activeChannel                             int
+	updatesView                               bool
+	updateChannel                             string
+	updateAutoCheck                           bool
+	updateChecking                            bool
+	updateStatus                              string
+	updateResult                              chan updateCheckResult
+	updateSignals                             chan struct{}
+	updateChecker                             interface {
+		Check(context.Context, string, string, string, string, ed25519.PublicKey) (ota.Update, error)
+	}
+	saveUpdatePreferences                      func(string, bool) error
+	updateCtx                                  context.Context
+	updateInvalidate                           func()
+	availableUpdate                            *ota.Update
 	direct                                     bool
 	profileOpen                                bool
 	profileSlide                               panelTransition
 	contentKey                                 string
 	contentSlide                               panelTransition
 	messageList                                layout.List
+	updateList                                 layout.List
 	composer                                   widget.Editor
 	messages                                   []mock.Message
 	reactions                                  reactions.Store
@@ -63,7 +83,7 @@ type App struct {
 }
 
 func New() *App {
-	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, contextShown: -1, palette: theme.Dark, activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}}
+	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, contextShown: -1, palette: theme.Dark, activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}, updateChannel: "stable", updateResult: make(chan updateCheckResult, 1), updateSignals: make(chan struct{}, 1), updateChecker: ota.GitHubSource{Owner: "angyedz", Repository: "Waycord"}, updateCtx: context.Background()}
 	a.theme = material.NewTheme()
 	if shaper, err := theme.NewShaper(); err == nil {
 		a.theme.Shaper = shaper
@@ -83,6 +103,7 @@ func New() *App {
 }
 
 func (a *App) process(gtx layout.Context) {
+	a.processUpdateChecks()
 	a.processContextMenu(gtx)
 	a.processReactions(gtx)
 	if a.emojiButton.Clicked(gtx) {
@@ -133,6 +154,22 @@ func (a *App) process(gtx layout.Context) {
 	if a.updatesButton.Clicked(gtx) {
 		a.contextTarget = -1
 		a.updatesView = true
+	}
+	if a.updateCheckButton.Clicked(gtx) {
+		a.checkForUpdates()
+	}
+	if a.updateAutoButton.Clicked(gtx) {
+		a.setUpdatePreferences(a.updateChannel, !a.updateAutoCheck)
+	}
+	for i, channel := range [...]string{"stable", "beta", "nightly"} {
+		if a.updateChannelButtons[i].Clicked(gtx) {
+			a.setUpdatePreferences(channel, a.updateAutoCheck)
+		}
+	}
+	if a.updateOpenButton.Clicked(gtx) && a.availableUpdate != nil {
+		if err := openReleasePage(a.availableUpdate.ReleaseURL); err != nil {
+			a.updateStatus = err.Error()
+		}
 	}
 	if a.sendButton.Clicked(gtx) && !a.updatesView {
 		a.sendPreview()

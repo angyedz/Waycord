@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image"
+	"os"
 	"testing"
 
 	"gioui.org/layout"
@@ -9,6 +10,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/angyedz/Waycord/internal/ota"
 	"github.com/angyedz/Waycord/internal/ui/mock"
 )
 
@@ -113,5 +115,36 @@ func TestFormattedMessageRemainsSelectableWithoutMarkdownMarkers(t *testing.T) {
 	app.messageContent(gtx, 0, message)
 	if got := body.SelectedText(); got != "bold" {
 		t.Fatalf("formatted selection was lost on relayout: %q", got)
+	}
+}
+
+func TestUpdateCheckFailsClosedWithoutTrustedKey(t *testing.T) {
+	app := New()
+	app.checkForUpdates()
+	if app.updateChecking || app.updateStatus != "Signed updates aren't enabled for this build yet." {
+		t.Fatalf("update check did not fail closed: checking=%t status=%q", app.updateChecking, app.updateStatus)
+	}
+}
+
+func TestUpdatePreferenceChangePersistsBeforeApplying(t *testing.T) {
+	app := New()
+	app.ConfigureUpdatePreferences("stable", false, func(string, bool) error { return os.ErrPermission })
+	app.setUpdatePreferences("beta", true)
+	if app.updateChannel != "stable" || app.updateAutoCheck {
+		t.Fatalf("preferences changed after failed save: channel=%q auto=%t", app.updateChannel, app.updateAutoCheck)
+	}
+	if app.updateStatus == "" {
+		t.Fatal("save failure was not shown")
+	}
+}
+
+func TestUpdateResultFromPreviousChannelIsIgnored(t *testing.T) {
+	app := New()
+	app.updateChannel = "beta"
+	app.updateChecking = true
+	app.updateResult <- updateCheckResult{channel: "stable", update: ota.Update{Available: true}}
+	app.processUpdateChecks()
+	if app.updateChecking || app.availableUpdate != nil || app.updateStatus != "" {
+		t.Fatalf("old channel result changed the update screen: checking=%t update=%+v status=%q", app.updateChecking, app.availableUpdate, app.updateStatus)
 	}
 }
