@@ -66,8 +66,15 @@ func run() error {
 			log.Print("Waycord appearance preferences: ", uiLoadErr)
 			uiPreferences = storage.UIPreferences{Theme: "dark"}
 		}
+		profileName, profileStatus, presence := uiPreferences.DisplayName, uiPreferences.CustomStatus, uiPreferences.Presence
+		if profileName == "" {
+			profileName, profileStatus, presence = "angyedz", "On a break", 3
+		}
+		view.ConfigureLocalProfile(profileName, profileStatus, presence, func(name, status string, presence int) error {
+			return uiStore.SaveProfile(name, status, presence)
+		})
 		view.ConfigureUIPreferences(uiPreferences.Theme, uiPreferences.CompactMessages, uiPreferences.ReduceMotion, func(theme string, compactMessages, reduceMotion bool) error {
-			return uiStore.Save(storage.UIPreferences{Theme: theme, CompactMessages: compactMessages, ReduceMotion: reduceMotion})
+			return uiStore.SaveAppearance(storage.UIPreferences{Theme: theme, CompactMessages: compactMessages, ReduceMotion: reduceMotion})
 		})
 	}
 	updateCtx, stopUpdateChecks := context.WithCancel(context.Background())

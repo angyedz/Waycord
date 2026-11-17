@@ -10,12 +10,17 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+	"unicode/utf8"
 )
 
 type UIPreferences struct {
 	Theme           string `json:"theme"`
 	CompactMessages bool   `json:"compact_messages"`
 	ReduceMotion    bool   `json:"reduce_motion"`
+	DisplayName     string `json:"display_name,omitempty"`
+	CustomStatus    string `json:"custom_status,omitempty"`
+	Presence        int    `json:"presence,omitempty"`
 }
 
 type uiPreferencesEnvelope struct {
@@ -37,7 +42,9 @@ func (s UIPreferencesStore) path(slot int) string {
 }
 
 func validUIPreferences(p UIPreferences) bool {
-	return p.Theme == "dark" || p.Theme == "midnight" || p.Theme == "light"
+	validTheme := p.Theme == "dark" || p.Theme == "midnight" || p.Theme == "light"
+	profileUnset := p.DisplayName == "" && p.CustomStatus == "" && p.Presence == 0
+	return validTheme && (profileUnset || validLocalProfile(p.DisplayName, p.CustomStatus, p.Presence))
 }
 
 func uiPreferencesDigest(generation uint64, p UIPreferences) string {
@@ -145,4 +152,49 @@ func (s UIPreferencesStore) Save(preferences UIPreferences) error {
 		return err
 	}
 	return os.Rename(tmpPath, s.path(slot))
+}
+
+// SaveAppearance merges the appearance section into the current preferences so
+// changing a theme cannot erase the locally stored profile.
+func (s UIPreferencesStore) SaveAppearance(appearance UIPreferences) error {
+	if !validUIPreferences(appearance) {
+		return errors.New("invalid UI preferences")
+	}
+	current, err := s.loadForUpdate()
+	if err != nil {
+		return err
+	}
+	current.Theme = appearance.Theme
+	current.CompactMessages = appearance.CompactMessages
+	current.ReduceMotion = appearance.ReduceMotion
+	return s.Save(current)
+}
+
+// SaveProfile merges the local mock identity into the current preferences.
+func (s UIPreferencesStore) SaveProfile(displayName, customStatus string, presence int) error {
+	if !validLocalProfile(displayName, customStatus, presence) {
+		return errors.New("invalid local profile")
+	}
+	current, err := s.loadForUpdate()
+	if err != nil {
+		return err
+	}
+	current.DisplayName = displayName
+	current.CustomStatus = customStatus
+	current.Presence = presence
+	return s.Save(current)
+}
+
+func (s UIPreferencesStore) loadForUpdate() (UIPreferences, error) {
+	current, err := s.Load()
+	if errors.Is(err, errUIPreferencesCorrupt) {
+		return UIPreferences{Theme: "dark"}, nil
+	}
+	return current, err
+}
+
+func validLocalProfile(displayName, customStatus string, presence int) bool {
+	displayName = strings.TrimSpace(displayName)
+	return displayName != "" && utf8.RuneCountInString(displayName) <= 32 &&
+		utf8.RuneCountInString(customStatus) <= 80 && presence >= 0 && presence < 4
 }

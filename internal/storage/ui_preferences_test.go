@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -50,5 +52,57 @@ func TestUIPreferencesStoreRejectsInvalidAndUnknownFields(t *testing.T) {
 	}
 	if got, err := store.Load(); err != nil || !got.CompactMessages {
 		t.Fatalf("recovered preferences did not load: %+v, %v", got, err)
+	}
+}
+
+func TestUIPreferencesStoreMergesAppearanceAndLocalProfileUpdates(t *testing.T) {
+	store := UIPreferencesStore{Root: t.TempDir()}
+	initial := UIPreferences{Theme: "midnight", CompactMessages: true, DisplayName: "mira", CustomStatus: "At lunch", Presence: 1}
+	if err := store.Save(initial); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveProfile("angyedz", "Building Waycord", 3); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveAppearance(UIPreferences{Theme: "light", ReduceMotion: true}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := UIPreferences{Theme: "light", ReduceMotion: true, DisplayName: "angyedz", CustomStatus: "Building Waycord", Presence: 3}
+	if got != want {
+		t.Fatalf("profile and appearance updates did not merge: got %+v, want %+v", got, want)
+	}
+}
+
+func TestUIPreferencesStoreRejectsInvalidLocalProfile(t *testing.T) {
+	store := UIPreferencesStore{Root: t.TempDir()}
+	for _, profile := range []struct {
+		name, status string
+		presence     int
+	}{{" ", "", 0}, {"Mira", strings.Repeat("x", 81), 0}, {"Mira", "", 4}} {
+		if err := store.SaveProfile(profile.name, profile.status, profile.presence); err == nil {
+			t.Fatalf("accepted invalid profile %+v", profile)
+		}
+	}
+}
+
+func TestUIPreferencesStoreLoadsPreferencesWrittenBeforeLocalProfileFields(t *testing.T) {
+	store := UIPreferencesStore{Root: t.TempDir()}
+	legacy := UIPreferences{Theme: "dark", CompactMessages: true}
+	envelope := uiPreferencesEnvelope{Generation: 1, Preferences: legacy}
+	envelope.Digest = uiPreferencesDigest(envelope.Generation, envelope.Preferences)
+	data, err := json.Marshal(envelope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(store.path(0), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Load()
+	if err != nil || got != legacy {
+		t.Fatalf("legacy settings did not load: got %+v, err %v", got, err)
 	}
 }

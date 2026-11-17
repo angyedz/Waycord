@@ -81,6 +81,8 @@ type App struct {
 	selfProfileName                        string
 	selfProfileUsername                    string
 	selfProfileStatus                      string
+	saveLocalProfile                       func(string, string, int) error
+	selfProfileError                       string
 	voiceServer, voiceChannel              string
 	micIcon, micOffIcon, headsetIcon       *widget.Icon
 	videoIcon, videoOffIcon                *widget.Icon

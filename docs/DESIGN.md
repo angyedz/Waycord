@@ -28,7 +28,7 @@ Single source of truth: `internal/ui/theme/palette.go`.
 - **Server pages:** guide, events, roles and boosts appear only when the selected server has matching data. Guide steps and event attendance update local preview state; boost progress is informational.
 - **Workspace:** flexible width, 58dp header, virtualized message list and message composer.
 - **Direct messages:** their own navigation entry and contact list; a compact profile for the selected contact appears only in the direct conversation when there is room.
-- **Own profile:** clicking the user panel opens a floating card with local presence selection, editable display name and status; voice location appears only while connected.
+- **Own profile:** clicking the user panel opens a floating card with local presence selection, editable display name and status; voice location appears only while connected. Name, status, and presence are saved with the other local UI preferences.
 - **Members:** the server member panel is optional and is only laid out while open.
 - **Message tools:** search filters the current conversation. Pins filter the current channel; pin, unpin, reply and copy actions are available from the message menu.
 - **Emoji and media:** a bundled color font supplies a fallback on both desktop platforms. The composer opens a compact local emoji, GIF and sticker picker; selected samples appear in the active conversation.
@@ -42,7 +42,7 @@ Single source of truth: `internal/ui/theme/palette.go`.
 - Buttons size to their label and intentional padding, rather than inheriting a header or panel's minimum dimensions.
 - The application uses local fixture data. Send, reactions, reply, pins, profile edits, search, channel selection, voice controls and settings change local state only.
 - Channel controls switch between local preview conversations.
-- User settings are stored under the operating-system configuration directory with two recoverable generations.
+- Appearance and profile settings are stored under the operating-system configuration directory with two recoverable generations. Appearance changes merge into the current record so they preserve the local profile; profile changes are applied only after the write succeeds.
 - Update discovery is available in Settings when a trusted signing key is configured. Installation stays in the standalone updater until the trust key and release workflow are configured.
 - Focus states, keyboard navigation, high DPI, accessibility, empty/loading/error views, and icons are the next design passes.
 

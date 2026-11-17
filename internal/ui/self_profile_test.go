@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"image"
 	"testing"
 	"time"
@@ -60,6 +61,54 @@ func TestSelfProfileSaveUpdatesLocalIdentity(t *testing.T) {
 	app.saveSelfProfile()
 	if app.selfProfileName != "Mira" || app.selfProfileStatus != "" {
 		t.Fatalf("empty name should be ignored and empty status should clear: name=%q status=%q", app.selfProfileName, app.selfProfileStatus)
+	}
+}
+
+func TestSelfProfileChangesPersistAndSaveErrorsKeepEditorOpen(t *testing.T) {
+	app := New()
+	var savedName, savedStatus string
+	var savedPresence int
+	app.ConfigureLocalProfile("angyedz", "On a break", 3, func(name, status string, presence int) error {
+		savedName, savedStatus, savedPresence = name, status, presence
+		return nil
+	})
+	app.selfProfileEditing = true
+	app.selfProfileNameEditor.SetText("  Mira  ")
+	app.selfProfileStatusEditor.SetText("  At lunch  ")
+	app.saveSelfProfile()
+	if savedName != "Mira" || savedStatus != "At lunch" || savedPresence != 3 {
+		t.Fatalf("profile save callback got %q, %q, %d", savedName, savedStatus, savedPresence)
+	}
+	if app.selfProfileName != "Mira" || app.selfProfileStatus != "At lunch" || app.selfProfileEditing {
+		t.Fatal("saved profile was not applied to the UI")
+	}
+	app.saveLocalProfile = func(string, string, int) error { return errors.New("disk full") }
+	app.selfProfileEditing = true
+	app.selfProfileNameEditor.SetText("Not saved")
+	app.saveSelfProfile()
+	if app.selfProfileName != "Mira" || !app.selfProfileEditing || app.selfProfileError == "" {
+		t.Fatal("failed profile save should preserve the current identity and keep the editor open")
+	}
+}
+
+func TestSelfProfilePresencePersistsBeforeClosing(t *testing.T) {
+	app := New()
+	app.selfProfileOpen = true
+	app.ConfigureLocalProfile("Mira", "At lunch", 1, func(name, status string, presence int) error {
+		if name != "Mira" || status != "At lunch" || presence != 2 {
+			t.Fatalf("unexpected persisted presence: %q, %q, %d", name, status, presence)
+		}
+		return nil
+	})
+	app.setLocalPresence(2)
+	if app.selfPresence != 2 || app.selfProfileOpen {
+		t.Fatal("presence change was not applied and dismissed")
+	}
+	app.selfProfileOpen = true
+	app.saveLocalProfile = func(string, string, int) error { return errors.New("disk full") }
+	app.setLocalPresence(0)
+	if app.selfPresence != 2 || !app.selfProfileOpen || app.selfProfileError == "" {
+		t.Fatal("failed presence save should leave the panel open and preserve the previous status")
 	}
 }
 
