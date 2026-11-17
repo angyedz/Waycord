@@ -15,15 +15,15 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 			})
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			var visible []mock.Message
-			for _, m := range a.messages {
+			var visible []int
+			for index, m := range a.messages {
 				if m.Direct == a.direct && (a.direct || m.Channel == a.activeChannel) {
-					visible = append(visible, m)
+					visible = append(visible, index)
 				}
 			}
 			return layout.Inset{Left: 20, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return a.messageList.Layout(gtx, len(visible), func(gtx layout.Context, i int) layout.Dimensions {
-					return layout.Inset{Bottom: 13}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return a.message(gtx, visible[i]) })
+					return layout.Inset{Bottom: 13}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return a.message(gtx, visible[i], a.messages[visible[i]]) })
 				})
 			})
 		}),
@@ -56,7 +56,7 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 	)
 }
 
-func (a *App) message(gtx layout.Context, m mock.Message) layout.Dimensions {
+func (a *App) message(gtx layout.Context, index int, m mock.Message) layout.Dimensions {
 	return layout.Flex{Alignment: layout.Start}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			avatar := a.palette.Surface2
@@ -76,10 +76,12 @@ func (a *App) message(gtx layout.Context, m mock.Message) layout.Dimensions {
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(a.text(m.Author, 14, a.palette.Text)), hspace(10),
 						layout.Rigid(a.text(m.Time, 11, a.palette.Subtle)),
+						hspace(8), layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.reactionAdd(gtx, index) }),
 					)
 				}),
 				vspace(4),
 				layout.Rigid(a.text(m.Body, 14, a.palette.Muted)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.reactionRow(gtx, index) }),
 			)
 		}),
 	)

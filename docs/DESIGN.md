@@ -28,6 +28,7 @@ Single source of truth: `internal/ui/theme/palette.go`.
 - **Workspace:** flexible width, 58dp header, virtualized message list and message composer.
 - **Direct messages:** their own navigation entry and contact list; a compact profile for the selected contact appears only in the direct conversation when there is room.
 - **Emoji:** a bundled color font supplies a fallback on both desktop platforms; the composer includes a small local picker.
+- **Reactions:** the emoji control beside each message opens a local picker; selecting an existing reaction again removes it.
 - **Updates screen:** separate workspace route with channel picker and explicit explanation of signed OTA steps.
 - **Minimum window:** 800 × 540dp; responsive reflow below this size is future work.
 

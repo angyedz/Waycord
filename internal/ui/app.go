@@ -11,6 +11,7 @@ import (
 	"gioui.org/widget/material"
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
+	"github.com/angyedz/Waycord/internal/core/reactions"
 	"github.com/angyedz/Waycord/internal/ui/mock"
 	"github.com/angyedz/Waycord/internal/ui/theme"
 )
@@ -40,10 +41,13 @@ type App struct {
 	messageList                               layout.List
 	composer                                  widget.Editor
 	messages                                  []mock.Message
+	reactions                                 reactions.Store
+	reactionWidgets                           map[int]*reactionWidget
+	reactionTarget                            int
 }
 
 func New() *App {
-	a := &App{palette: theme.Dark, activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}}
+	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, palette: theme.Dark, activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}}
 	a.theme = material.NewTheme()
 	if shaper, err := theme.NewShaper(); err == nil {
 		a.theme.Shaper = shaper
@@ -62,6 +66,7 @@ func New() *App {
 }
 
 func (a *App) process(gtx layout.Context) {
+	a.processReactions(gtx)
 	if a.emojiButton.Clicked(gtx) {
 		a.emojiOpen = !a.emojiOpen
 	}
@@ -80,17 +85,20 @@ func (a *App) process(gtx layout.Context) {
 	}
 	a.sidebar.update(gtx)
 	if a.directButton.Clicked(gtx) || a.contactButton.Clicked(gtx) {
+		a.reactionTarget = -1
 		a.direct, a.updatesView = true, false
 		a.messageList.Position = layout.Position{}
 		a.messageList.ScrollToEnd = false
 	}
 	if a.serverButton.Clicked(gtx) {
+		a.reactionTarget = -1
 		a.direct, a.updatesView = false, false
 		a.messageList.Position = layout.Position{}
 		a.messageList.ScrollToEnd = false
 	}
 	for i := range a.channelButtons {
 		if a.channelButtons[i].Clicked(gtx) {
+			a.reactionTarget = -1
 			a.activeChannel = i
 			a.updatesView = false
 			a.direct = false
