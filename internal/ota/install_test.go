@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 )
@@ -52,5 +53,35 @@ func TestSignedUpdateStagesOnlyVerifiedArtifact(t *testing.T) {
 	got, err := os.ReadFile(path)
 	if err != nil || string(got) != string(artifact) {
 		t.Fatalf("staged artifact differs: %q %v", got, err)
+	}
+}
+
+func TestStoreManagesOnlyItsCurrentVersionExecutable(t *testing.T) {
+	store := Store{Root: t.TempDir()}
+	if err := store.Save(State{Current: "v1.0.0"}); err != nil {
+		t.Fatal(err)
+	}
+	managed, err := store.Binary("v1.0.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(managed), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(managed, []byte("current app"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if !store.ManagesExecutable(managed, "v1.0.0") {
+		t.Fatal("current binary in the user-scoped version slot was not recognized")
+	}
+	if store.ManagesExecutable(managed, "v2.0.0") {
+		t.Fatal("binary was treated as managed by a different version")
+	}
+	packageManaged := filepath.Join(t.TempDir(), BinaryName())
+	if err := os.WriteFile(packageManaged, []byte("system-managed app"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if store.ManagesExecutable(packageManaged, "v1.0.0") {
+		t.Fatal("binary outside the user-scoped store was eligible for self-update")
 	}
 }

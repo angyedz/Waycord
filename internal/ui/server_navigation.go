@@ -61,14 +61,25 @@ func (a *App) serverChannelsLayout(gtx layout.Context) layout.Dimensions {
 			key, category := a.categoryKey(index), category
 			button := a.categoryButton(key)
 			collapsed := a.collapsedCategories[key]
-			arrow := "⌄  "
+			arrow := a.categoryExpandedIcon
 			if collapsed {
-				arrow = "›  "
+				arrow = a.categoryCollapsedIcon
 			}
 			children = append(children, vspace(5), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				background := a.interactionColor(gtx, button, a.palette.Sidebar, a.palette.Surface2)
 				return button.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return rounded(gtx, background, 8, padding(layout.Inset{Left: 8, Right: 8, Top: 6, Bottom: 6}, a.text(arrow+category.Name, 12, a.palette.Muted)))
+					return rounded(gtx, background, 8, padding(layout.Inset{Left: 8, Right: 8, Top: 6, Bottom: 6}, func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return layout.Inset{Right: 5}.Layout(gtx, fixedWidth(14, fixedHeight(14, func(gtx layout.Context) layout.Dimensions {
+									return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+										return arrow.Layout(gtx, a.palette.Subtle)
+									})
+								})))
+							}),
+							layout.Rigid(a.text(category.Name, 12, a.palette.Muted)),
+						)
+					}))
 				})
 			}))
 			progress := a.transition(gtx, a.categoryTransition(key, !collapsed), boolProgress(!collapsed), 180*time.Millisecond)

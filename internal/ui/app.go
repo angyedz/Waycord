@@ -29,131 +29,140 @@ import (
 
 // App contains UI state only. Future protocol/media services stay outside it.
 type App struct {
-	palette                                theme.Palette
-	theme                                  *material.Theme
-	messageMarkdown                        *uiMarkdown.Cache
-	channelButtons                         [][]widget.Clickable
-	chatButton, updatesButton, sendButton  widget.Clickable
-	searchButton, searchCloseButton        widget.Clickable
-	pinnedButton                           widget.Clickable
-	updateCheckButton, updateAutoButton    widget.Clickable
-	updateOpenButton                       widget.Clickable
-	updateChannelButtons                   [3]widget.Clickable
-	settingsSections                       [5]widget.Clickable
-	themeButtons                           [3]widget.Clickable
-	compactButton                          widget.Clickable
-	reduceMotionButton                     widget.Clickable
-	settingsSection                        int
-	compactMessages                        bool
-	reduceMotion                           bool
-	themeName                              string
-	settingsStatus                         string
-	saveUIPreferences                      func(string, bool, bool) error
-	directButton, contactButton            widget.Clickable
-	serverButtons                          []widget.Clickable
-	serverFeatureButtons                   [][]widget.Clickable
-	serverFeatureIcons                     [serverFeatureCount]*widget.Icon
-	guideStepButtons                       [][]widget.Clickable
-	eventInterestButtons                   [][]widget.Clickable
-	activeServerFeature                    int
-	guideCompleted                         map[string]bool
-	eventInterested                        map[string]bool
-	categoryButtons                        map[string]*widget.Clickable
-	collapsedCategories                    map[string]bool
-	categoryTransitions                    map[string]*panelTransition
-	sidebarButton, profileButton           widget.Clickable
-	membersButton                          widget.Clickable
-	voiceJoin, voiceLeave                  widget.Clickable
-	voiceMute, voiceDeafen                 widget.Clickable
-	voiceCamera, voiceScreen               widget.Clickable
-	voice                                  voicepreview.State
-	voicePanelSlide                        panelTransition
-	selfProfileButton, selfProfileBackdrop widget.Clickable
-	selfStatusButtons                      [4]widget.Clickable
-	selfProfileEditButton                  widget.Clickable
-	selfProfileSaveButton                  widget.Clickable
-	selfProfileCancelButton                widget.Clickable
-	selfProfileNameEditor                  widget.Editor
-	selfProfileStatusEditor                widget.Editor
-	replyCancelButton, editCancelButton    widget.Clickable
-	contextEdit, contextDelete             widget.Clickable
-	deleteConfirm, deleteCancel            widget.Clickable
-	deleteBackdrop                         widget.Clickable
-	deleteDialogOpen                       bool
-	deleteTarget                           int
-	editTarget                             int
-	editDraftKey                           string
-	selfProfileOpen                        bool
-	selfProfileEditing                     bool
-	selfProfileSlide                       panelTransition
-	selfPresence                           int
-	selfProfileName                        string
-	selfProfileUsername                    string
-	selfProfileStatus                      string
-	saveLocalProfile                       func(string, string, int) error
-	selfProfileError                       string
-	selfAvatar                             image.Image
-	selfAvatarOp                           paint.ImageOp
-	selfAvatarButton                       widget.Clickable
-	chooseSelfAvatar                       func() (*attachments.Attachment, error)
-	saveSelfAvatar                         func([]byte) error
-	selfAvatarResults                      chan selfAvatarResult
-	selfAvatarBusy                         bool
-	selfAvatarError                        string
-	voiceServer, voiceChannel              string
-	micIcon, micOffIcon, headsetIcon       *widget.Icon
-	videoIcon, videoOffIcon                *widget.Icon
-	screenIcon, screenOffIcon, hangupIcon  *widget.Icon
-	sidebar                                sidebarState
-	menuIcon                               *widget.Icon
-	sendIcon                               *widget.Icon
-	settingsIcon                           *widget.Icon
-	searchIcon, pinnedIcon, closeIcon      *widget.Icon
-	replyIcon                              *widget.Icon
-	moreIcon                               *widget.Icon
-	attachIcon                             *widget.Icon
-	attachButton, removeAttachmentButton   widget.Clickable
-	attachmentDrafts                       map[string]*attachments.Attachment
-	attachmentResults                      chan attachmentResult
-	chooseAttachment                       func() (*attachments.Attachment, error)
-	attachmentBusy                         bool
-	attachmentError                        string
-	attachmentPreviews                     attachmentPreviewCache
-	membersIcon                            *widget.Icon
-	interactions                           map[*widget.Clickable]*interactionState
-	emojiIcon                              *widget.Icon
-	emojiButton                            widget.Clickable
-	gifButton, stickerButton               widget.Clickable
-	mediaTabButtons                        [3]widget.Clickable
-	mediaChoiceButtons                     []widget.Clickable
-	mediaPickerTab                         int
-	emojiPickerChoices                     []widget.Clickable
-	emojiOpen                              bool
-	emojiSlide                             panelTransition
-	emojiPickerHeight                      panelTransition
-	searchOpen                             bool
-	pinsOnly                               bool
-	searchEditor                           widget.Editor
-	searchSlide                            panelTransition
-	sendHover                              float32
-	sendHoverTime                          time.Time
-	activeChannel                          int
-	activeServer                           int
-	serverChannels                         []int
-	composerDrafts                         map[string]string
-	updatesView                            bool
-	updateChannel                          string
-	updateAutoCheck                        bool
-	updateChecking                         bool
-	updateStatus                           string
-	updateResult                           chan updateCheckResult
-	updateSignals                          chan struct{}
-	updateChecker                          interface {
+	palette                                     theme.Palette
+	theme                                       *material.Theme
+	messageMarkdown                             *uiMarkdown.Cache
+	channelButtons                              [][]widget.Clickable
+	chatButton, updatesButton, sendButton       widget.Clickable
+	searchButton, searchCloseButton             widget.Clickable
+	pinnedButton                                widget.Clickable
+	updateCheckButton, updateAutoButton         widget.Clickable
+	updateOpenButton, updateInstallButton       widget.Clickable
+	updateRestartButton                         widget.Clickable
+	updateChannelButtons                        [3]widget.Clickable
+	settingsSections                            [5]widget.Clickable
+	themeButtons                                [3]widget.Clickable
+	compactButton                               widget.Clickable
+	reduceMotionButton                          widget.Clickable
+	settingsSection                             int
+	compactMessages                             bool
+	reduceMotion                                bool
+	themeName                                   string
+	settingsStatus                              string
+	saveUIPreferences                           func(string, bool, bool) error
+	directButton, contactButton                 widget.Clickable
+	serverButtons                               []widget.Clickable
+	serverFeatureButtons                        [][]widget.Clickable
+	serverFeatureIcons                          [serverFeatureCount]*widget.Icon
+	guideStepButtons                            [][]widget.Clickable
+	eventInterestButtons                        [][]widget.Clickable
+	activeServerFeature                         int
+	guideCompleted                              map[string]bool
+	eventInterested                             map[string]bool
+	categoryButtons                             map[string]*widget.Clickable
+	collapsedCategories                         map[string]bool
+	categoryTransitions                         map[string]*panelTransition
+	sidebarButton, profileButton                widget.Clickable
+	membersButton                               widget.Clickable
+	voiceJoin, voiceLeave                       widget.Clickable
+	voiceMute, voiceDeafen                      widget.Clickable
+	voiceCamera, voiceScreen                    widget.Clickable
+	voice                                       voicepreview.State
+	voicePanelSlide                             panelTransition
+	selfProfileButton, selfProfileBackdrop      widget.Clickable
+	selfStatusButtons                           [4]widget.Clickable
+	selfProfileEditButton                       widget.Clickable
+	selfProfileSaveButton                       widget.Clickable
+	selfProfileCancelButton                     widget.Clickable
+	selfProfileNameEditor                       widget.Editor
+	selfProfileStatusEditor                     widget.Editor
+	replyCancelButton, editCancelButton         widget.Clickable
+	contextEdit, contextDelete                  widget.Clickable
+	deleteConfirm, deleteCancel                 widget.Clickable
+	deleteBackdrop                              widget.Clickable
+	deleteDialogOpen                            bool
+	deleteTarget                                int
+	editTarget                                  int
+	editDraftKey                                string
+	selfProfileOpen                             bool
+	selfProfileEditing                          bool
+	selfProfileSlide                            panelTransition
+	selfPresence                                int
+	selfProfileName                             string
+	selfProfileUsername                         string
+	selfProfileStatus                           string
+	saveLocalProfile                            func(string, string, int) error
+	selfProfileError                            string
+	selfAvatar                                  image.Image
+	selfAvatarOp                                paint.ImageOp
+	selfAvatarButton                            widget.Clickable
+	chooseSelfAvatar                            func() (*attachments.Attachment, error)
+	saveSelfAvatar                              func([]byte) error
+	selfAvatarResults                           chan selfAvatarResult
+	selfAvatarBusy                              bool
+	selfAvatarError                             string
+	voiceServer, voiceChannel                   string
+	micIcon, micOffIcon, headsetIcon            *widget.Icon
+	videoIcon, videoOffIcon                     *widget.Icon
+	screenIcon, screenOffIcon, hangupIcon       *widget.Icon
+	sidebar                                     sidebarState
+	menuIcon                                    *widget.Icon
+	sendIcon                                    *widget.Icon
+	settingsIcon                                *widget.Icon
+	searchIcon, pinnedIcon, closeIcon           *widget.Icon
+	categoryExpandedIcon, categoryCollapsedIcon *widget.Icon
+	replyIcon                                   *widget.Icon
+	moreIcon                                    *widget.Icon
+	attachIcon                                  *widget.Icon
+	attachButton, removeAttachmentButton        widget.Clickable
+	attachmentDrafts                            map[string]*attachments.Attachment
+	attachmentResults                           chan attachmentResult
+	chooseAttachment                            func() (*attachments.Attachment, error)
+	attachmentBusy                              bool
+	attachmentError                             string
+	attachmentPreviews                          attachmentPreviewCache
+	membersIcon                                 *widget.Icon
+	interactions                                map[*widget.Clickable]*interactionState
+	emojiIcon                                   *widget.Icon
+	emojiButton                                 widget.Clickable
+	gifButton, stickerButton                    widget.Clickable
+	mediaTabButtons                             [3]widget.Clickable
+	mediaChoiceButtons                          []widget.Clickable
+	mediaPickerTab                              int
+	emojiPickerChoices                          []widget.Clickable
+	emojiOpen                                   bool
+	emojiSlide                                  panelTransition
+	emojiPickerHeight                           panelTransition
+	searchOpen                                  bool
+	pinsOnly                                    bool
+	searchEditor                                widget.Editor
+	searchSlide                                 panelTransition
+	sendHover                                   float32
+	sendHoverTime                               time.Time
+	activeChannel                               int
+	activeServer                                int
+	serverChannels                              []int
+	composerDrafts                              map[string]string
+	updatesView                                 bool
+	updateChannel                               string
+	updateAutoCheck                             bool
+	updateChecking                              bool
+	updateStatus                                string
+	updateResult                                chan updateCheckResult
+	updateProgress                              chan updateInstallProgress
+	updateInstallResult                         chan updateInstallResult
+	updateSignals                               chan struct{}
+	updateChecker                               interface {
 		Check(context.Context, string, string, string, string, ed25519.PublicKey) (ota.Update, error)
 	}
 	saveUpdatePreferences                      func(string, bool) error
 	updateCtx                                  context.Context
 	updateInvalidate                           func()
+	updateInstaller                            func(context.Context, ota.Update, string, ed25519.PublicKey, ota.ProgressFunc) error
+	restartUpdatedApp                          func() error
+	updateInstalling                           bool
+	updateDownloaded, updateTotal              int64
+	updateStaged                               bool
 	availableUpdate                            *ota.Update
 	direct                                     bool
 	profileOpen                                bool
@@ -183,7 +192,7 @@ type App struct {
 }
 
 func New() *App {
-	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, contextShown: -1, replyTarget: -1, activeServerFeature: serverFeatureNone, palette: theme.Dark, themeName: "dark", activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}, updateChannel: "stable", updateResult: make(chan updateCheckResult, 1), updateSignals: make(chan struct{}, 1), updateChecker: ota.GitHubSource{Owner: "angyedz", Repository: "Waycord"}, updateCtx: context.Background(), selfProfileName: "angyedz", selfProfileUsername: "angyedz", selfProfileStatus: "On a break", selfAvatarResults: make(chan selfAvatarResult, 1)}
+	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, contextShown: -1, replyTarget: -1, activeServerFeature: serverFeatureNone, palette: theme.Dark, themeName: "dark", activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}, updateChannel: "stable", updateResult: make(chan updateCheckResult, 1), updateProgress: make(chan updateInstallProgress, 1), updateInstallResult: make(chan updateInstallResult, 1), updateSignals: make(chan struct{}, 1), updateChecker: ota.GitHubSource{Owner: "angyedz", Repository: "Waycord"}, updateCtx: context.Background(), selfProfileName: "angyedz", selfProfileUsername: "angyedz", selfProfileStatus: "On a break", selfAvatarResults: make(chan selfAvatarResult, 1)}
 	a.editTarget, a.deleteTarget = -1, -1
 	a.selfPresence = 3
 	a.theme = material.NewTheme()
@@ -195,6 +204,8 @@ func New() *App {
 	a.sendIcon, _ = widget.NewIcon(icons.ContentSend)
 	a.settingsIcon, _ = widget.NewIcon(icons.ActionSettings)
 	a.searchIcon, _ = widget.NewIcon(icons.ActionSearch)
+	a.categoryExpandedIcon, _ = widget.NewIcon(icons.NavigationExpandMore)
+	a.categoryCollapsedIcon, _ = widget.NewIcon(icons.NavigationChevronRight)
 	a.pinnedIcon, _ = widget.NewIcon(icons.ActionLabel)
 	a.closeIcon, _ = widget.NewIcon(icons.NavigationClose)
 	a.attachIcon, _ = widget.NewIcon(icons.ContentAddCircleOutline)
@@ -429,6 +440,16 @@ func (a *App) process(gtx layout.Context) {
 	if a.updateCheckButton.Clicked(gtx) {
 		a.checkForUpdates()
 	}
+	if a.updateInstallButton.Clicked(gtx) {
+		a.installAvailableUpdate()
+	}
+	if a.updateRestartButton.Clicked(gtx) && a.updateStaged && a.restartUpdatedApp != nil {
+		if err := a.restartUpdatedApp(); err != nil {
+			a.updateStatus = "Couldn't restart Waycord. Close and reopen it to finish the update."
+		} else {
+			a.updateStatus = "Restarting Waycord…"
+		}
+	}
 	if a.updateAutoButton.Clicked(gtx) {
 		a.setUpdatePreferences(a.updateChannel, !a.updateAutoCheck)
 	}
@@ -439,7 +460,7 @@ func (a *App) process(gtx layout.Context) {
 	}
 	if a.updateOpenButton.Clicked(gtx) && a.availableUpdate != nil {
 		if err := openReleasePage(a.availableUpdate.ReleaseURL); err != nil {
-			a.updateStatus = err.Error()
+			a.updateStatus = "Couldn't open release notes."
 		}
 	}
 	if a.sendButton.Clicked(gtx) && !a.updatesView {
@@ -713,9 +734,7 @@ func (a *App) header(gtx layout.Context) layout.Dimensions {
 					} else if a.activeServerFeature >= 0 {
 						title = serverFeatureNames[a.activeServerFeature]
 					}
-					offset := op.Offset(image.Pt(0, gtx.Dp(4))).Push(gtx.Ops)
 					dimensions := layout.W.Layout(gtx, a.text(title, 19, a.palette.Text))
-					offset.Pop()
 					return dimensions
 				}),
 			}

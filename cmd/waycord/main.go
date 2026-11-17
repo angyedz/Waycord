@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/hex"
 	"errors"
 	"image"
 	"log"
@@ -10,14 +12,17 @@ import (
 	"time"
 
 	"gioui.org/app"
+	"gioui.org/io/system"
 	"gioui.org/op"
 	"gioui.org/unit"
 	"gioui.org/x/explorer"
 
 	"github.com/angyedz/Waycord/internal/core/attachments"
 	"github.com/angyedz/Waycord/internal/ota"
+	"github.com/angyedz/Waycord/internal/platform"
 	"github.com/angyedz/Waycord/internal/storage"
 	"github.com/angyedz/Waycord/internal/ui"
+	"github.com/angyedz/Waycord/internal/version"
 )
 
 func main() {
@@ -62,6 +67,32 @@ func run() error {
 		view.ConfigureUpdatePreferences(preferences.Channel, preferences.AutoCheck, func(channel string, autoCheck bool) error {
 			return store.Save(storage.UpdatePreferences{Channel: channel, AutoCheck: autoCheck})
 		})
+		installRoot := filepath.Join(configDir, "waycord", "install")
+		updateStore := ota.Store{Root: installRoot}
+		currentExecutable, executableErr := os.Executable()
+		_, updaterErr := platform.ManagedUpdaterPath(installRoot)
+		publicKey, keyErr := hex.DecodeString(version.SigningPublicKeyHex)
+		if executableErr == nil && updaterErr == nil && keyErr == nil && len(publicKey) == ed25519.PublicKeySize && updateStore.ManagesExecutable(currentExecutable, version.Version) {
+			view.ConfigureUpdateInstallation(
+				func(ctx context.Context, update ota.Update, channel string, key ed25519.PublicKey, progress ota.ProgressFunc) error {
+					return updateStore.InstallUpdate(ctx, update, channel, key, progress)
+				},
+				func() error {
+					state, _, _, err := updateStore.Load()
+					if err != nil {
+						return err
+					}
+					if state.Pending == "" {
+						return errors.New("no staged update")
+					}
+					if err := platform.StartManagedUpdater(installRoot); err != nil {
+						return err
+					}
+					w.Perform(system.ActionClose)
+					return nil
+				},
+			)
+		}
 		uiStore := storage.UIPreferencesStore{Root: filepath.Join(configDir, "waycord")}
 		uiPreferences, uiLoadErr := uiStore.Load()
 		if uiLoadErr != nil {

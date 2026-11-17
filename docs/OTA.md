@@ -1,6 +1,6 @@
 # Waycord OTA v1: signed, versioned, recoverable
 
-**Status:** the UI can inspect GitHub Releases, verify their signed platform manifest, show release notes, and remember the selected channel and automatic-check preference. This repository has no configured public release key or published releases, so checks fail closed without network access until a trusted public key is injected at build time. UI installation/activation still requires the standalone updater CLI.
+**Status:** the UI can inspect GitHub Releases, verify their signed platform manifest, show release notes, and remember the selected channel and automatic-check preference. For an app launched from its user-managed version slot, it can download and stage a verified update with progress, then hand restart to the bundled launcher. System and package-manager installs do not get a self-install action. This repository has no configured public release key or published releases, so the current development build cannot check or install updates and fails closed.
 
 ## Security design
 
@@ -14,7 +14,7 @@
 
 Two checksummed state slots are alternated (`state-0.json`, `state-1.json`), so a torn write doesn't destroy both records. This is **crash recovery**, not anti-tamper protection against another process running as the same user. Never run the updater with elevated permissions. The launcher should eventually use an interprocess lock for concurrent executions and package-manager integrations.
 
-**Limitations:** the UI currently checks for and displays signed release notes, but does not yet download or activate an update itself. The standalone updater CLI handles staging and activation. The heartbeat detects a stalled GUI event loop during its observation window, but cannot detect every internal UI failure or crashes after those 10 seconds. A slow or suspended desktop can also miss heartbeats and cause a conservative rollback. Updater self-updates, longer-term crash recovery, transaction locks, Windows code-signing and full end-to-end signed-release CI are future work. Retaining previous versions consumes some disk. Do not use this to overwrite files managed by a distro package manager.
+**Limitations:** the in-app install action is only enabled when Waycord confirms the current executable is the active version in the per-user store and finds `waycord-updater[.exe]` in that store's root. Initial installs and recovery remain available through the standalone updater CLI. The heartbeat detects a stalled GUI event loop during its observation window, but cannot detect every internal UI failure or crashes after those 10 seconds. A slow or suspended desktop can also miss heartbeats and cause a conservative rollback. Updater self-updates, longer-term crash recovery, transaction locks, Windows code-signing and full end-to-end signed-release CI are future work. Retaining previous versions consumes some disk. Do not use this to overwrite files managed by a distro package manager.
 
 ## Release manifest format
 

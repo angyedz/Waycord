@@ -1,6 +1,10 @@
 package ui
 
 import (
+	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/hex"
 	"image"
 	"os"
 	"testing"
@@ -14,6 +18,7 @@ import (
 	"github.com/angyedz/Waycord/internal/core/attachments"
 	"github.com/angyedz/Waycord/internal/ota"
 	"github.com/angyedz/Waycord/internal/ui/mock"
+	"github.com/angyedz/Waycord/internal/version"
 )
 
 func TestPreviewMessageRemainsInItsConversation(t *testing.T) {
@@ -238,8 +243,73 @@ func TestFormattedMessageRemainsSelectableWithoutMarkdownMarkers(t *testing.T) {
 func TestUpdateCheckFailsClosedWithoutTrustedKey(t *testing.T) {
 	app := New()
 	app.checkForUpdates()
-	if app.updateChecking || app.updateStatus != "Signed updates aren't enabled for this build yet." {
+	if app.updateChecking || app.updateStatus != "Updates are unavailable for this installation." {
 		t.Fatalf("update check did not fail closed: checking=%t status=%q", app.updateChecking, app.updateStatus)
+	}
+}
+
+func TestUpdateInstallProgressTransitionsToReadyState(t *testing.T) {
+	public, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previousKey := version.SigningPublicKeyHex
+	version.SigningPublicKeyHex = hex.EncodeToString(public)
+	defer func() { version.SigningPublicKeyHex = previousKey }()
+
+	app := New()
+	app.availableUpdate = &ota.Update{Available: true, Payload: ota.Payload{Version: "v1.0.1", Size: 10}}
+	app.updateInvalidate = func() {}
+	finished := make(chan struct{})
+	app.ConfigureUpdateInstallation(func(_ context.Context, _ ota.Update, channel string, key ed25519.PublicKey, progress ota.ProgressFunc) error {
+		if channel != "stable" || string(key) != string(public) {
+			t.Errorf("installer received wrong release selection or key: channel=%q", channel)
+		}
+		progress(4, 10)
+		progress(10, 10)
+		close(finished)
+		return nil
+	}, func() error { return nil })
+
+	app.installAvailableUpdate()
+	if !app.updateInstalling || app.updateTotal != 10 {
+		t.Fatalf("download did not enter progress state: installing=%t total=%d", app.updateInstalling, app.updateTotal)
+	}
+	select {
+	case <-finished:
+	case <-time.After(time.Second):
+		t.Fatal("installer was not called")
+	}
+	for deadline := time.Now().Add(time.Second); len(app.updateInstallResult) == 0 && time.Now().Before(deadline); {
+		time.Sleep(time.Millisecond)
+	}
+	app.processUpdateChecks()
+	if app.updateInstalling || !app.updateStaged || app.updateStatus != "Update ready to install. Restart Waycord when you're ready." {
+		t.Fatalf("download did not transition to ready state: installing=%t staged=%t status=%q", app.updateInstalling, app.updateStaged, app.updateStatus)
+	}
+	if app.updateDownloaded != 10 || app.updateProgressLabel() != "Downloading update… 100%" {
+		t.Fatalf("final progress wasn't rendered: downloaded=%d label=%q", app.updateDownloaded, app.updateProgressLabel())
+	}
+}
+
+func TestUpdateInstallRequiresManagedRestartPath(t *testing.T) {
+	app := New()
+	app.ConfigureUpdateInstallation(func(context.Context, ota.Update, string, ed25519.PublicKey, ota.ProgressFunc) error { return nil }, nil)
+	if app.updateInstaller != nil || app.restartUpdatedApp != nil {
+		t.Fatal("update install was enabled without a managed restart path")
+	}
+}
+
+func TestCategoryDisclosureIconsLayoutWithoutFontGlyphs(t *testing.T) {
+	app := New()
+	if app.categoryExpandedIcon == nil || app.categoryCollapsedIcon == nil {
+		t.Fatal("category disclosure icons were not initialized")
+	}
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}, Constraints: layout.Constraints{Max: image.Pt(320, 600)}}
+	dimensions := app.serverChannelsLayout(gtx)
+	if dimensions.Size.X == 0 || dimensions.Size.Y == 0 {
+		t.Fatalf("category sidebar did not layout: %+v", dimensions)
 	}
 }
 

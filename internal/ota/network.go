@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+type ProgressFunc func(downloaded, total int64)
+
 func secureClient() *http.Client {
 	return &http.Client{
 		Timeout: 3 * time.Minute,
@@ -72,6 +74,10 @@ func Download(ctx context.Context, p Payload, tempDir string) (string, error) {
 }
 
 func download(ctx context.Context, p Payload, tempDir string, client *http.Client) (string, error) {
+	return downloadWithProgress(ctx, p, tempDir, client, nil)
+}
+
+func downloadWithProgress(ctx context.Context, p Payload, tempDir string, client *http.Client, progress ProgressFunc) (string, error) {
 	if err := p.Validate(); err != nil {
 		return "", err
 	}
@@ -110,7 +116,8 @@ func download(ctx context.Context, p Payload, tempDir string, client *http.Clien
 	}
 	h := sha256.New()
 	var n int64
-	n, err = io.Copy(io.MultiWriter(f, h), io.LimitReader(resp.Body, p.Size+1))
+	reader := progressReader{reader: io.LimitReader(resp.Body, p.Size+1), total: p.Size, progress: progress}
+	n, err = io.Copy(io.MultiWriter(f, h), &reader)
 	if err != nil {
 		return "", err
 	}
@@ -128,4 +135,20 @@ func download(ctx context.Context, p Payload, tempDir string, client *http.Clien
 	}
 	success = true
 	return filepath.Clean(path), nil
+}
+
+type progressReader struct {
+	reader     io.Reader
+	total      int64
+	downloaded int64
+	progress   ProgressFunc
+}
+
+func (r *progressReader) Read(buffer []byte) (int, error) {
+	n, err := r.reader.Read(buffer)
+	r.downloaded += int64(n)
+	if n > 0 && r.progress != nil {
+		r.progress(min(r.downloaded, r.total), r.total)
+	}
+	return n, err
 }

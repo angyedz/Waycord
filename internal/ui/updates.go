@@ -5,10 +5,13 @@ import (
 	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
+	"image"
 	"runtime"
 	"time"
 
 	"gioui.org/layout"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 
 	"github.com/angyedz/Waycord/internal/ota"
 	"github.com/angyedz/Waycord/internal/platform"
@@ -21,6 +24,26 @@ type updateCheckResult struct {
 	channel string
 	update  ota.Update
 	err     error
+}
+
+type updateInstallProgress struct {
+	downloaded int64
+	total      int64
+}
+
+type updateInstallResult struct{ err error }
+
+// ConfigureUpdateInstallation enables in-app staging only for a verified,
+// user-managed install. Package-managed installs leave both callbacks nil.
+func (a *App) ConfigureUpdateInstallation(
+	install func(context.Context, ota.Update, string, ed25519.PublicKey, ota.ProgressFunc) error,
+	restart func() error,
+) {
+	if install == nil || restart == nil {
+		a.updateInstaller, a.restartUpdatedApp = nil, nil
+		return
+	}
+	a.updateInstaller, a.restartUpdatedApp = install, restart
 }
 
 // ConfigureUpdatePreferences binds the screen to persisted user preferences.
@@ -37,7 +60,7 @@ func (a *App) setUpdatePreferences(channel string, autoCheck bool) {
 	}
 	if a.saveUpdatePreferences != nil {
 		if err := a.saveUpdatePreferences(channel, autoCheck); err != nil {
-			a.updateStatus = "Couldn't save update preferences: " + err.Error()
+			a.updateStatus = "Couldn't save update preferences."
 			return
 		}
 	}
@@ -87,13 +110,27 @@ func (a *App) processUpdateChecks() {
 			}
 			if result.err != nil {
 				a.availableUpdate = nil
-				a.updateStatus = result.err.Error()
+				a.updateStatus = "Couldn't check for updates. Try again later."
 			} else if result.update.Available {
 				a.availableUpdate = &result.update
-				a.updateStatus = "A signed update is available."
+				a.updateStatus = "An update is available."
 			} else {
 				a.availableUpdate = nil
 				a.updateStatus = "You're up to date."
+			}
+		case progress := <-a.updateProgress:
+			if a.updateInstalling {
+				a.updateDownloaded, a.updateTotal = progress.downloaded, progress.total
+			}
+		case result := <-a.updateInstallResult:
+			a.drainUpdateProgress()
+			a.updateInstalling = false
+			if result.err != nil {
+				a.updateStaged = false
+				a.updateStatus = "Couldn't download the update. Please try again."
+			} else {
+				a.updateStaged = true
+				a.updateStatus = "Update ready to install. Restart Waycord when you're ready."
 			}
 		case <-a.updateSignals:
 			if a.updateAutoCheck && !a.updateChecking {
@@ -105,14 +142,69 @@ func (a *App) processUpdateChecks() {
 	}
 }
 
+func (a *App) drainUpdateProgress() {
+	for {
+		select {
+		case progress := <-a.updateProgress:
+			a.updateDownloaded, a.updateTotal = progress.downloaded, progress.total
+		default:
+			return
+		}
+	}
+}
+
+func (a *App) installAvailableUpdate() {
+	if a.updateInstalling || a.updateStaged || a.availableUpdate == nil || a.updateInstaller == nil {
+		return
+	}
+	key, err := ed25519PublicKey()
+	if err != nil {
+		a.updateStatus = "Updates are unavailable for this installation."
+		return
+	}
+	a.updateInstalling = true
+	a.updateDownloaded, a.updateTotal = 0, a.availableUpdate.Payload.Size
+	a.updateStatus = "Downloading update…"
+	ctx, cancel := context.WithTimeout(a.updateCtx, 5*time.Minute)
+	update := *a.availableUpdate
+	channel := a.updateChannel
+	publicKey := append(ed25519.PublicKey(nil), key...)
+	go func() {
+		defer cancel()
+		progress := func(downloaded, total int64) {
+			latest := updateInstallProgress{downloaded: downloaded, total: total}
+			select {
+			case a.updateProgress <- latest:
+			default:
+				select {
+				case <-a.updateProgress:
+				default:
+				}
+				select {
+				case a.updateProgress <- latest:
+				default:
+				}
+			}
+			if a.updateInvalidate != nil {
+				a.updateInvalidate()
+			}
+		}
+		installErr := a.updateInstaller(ctx, update, channel, publicKey, progress)
+		a.updateInstallResult <- updateInstallResult{err: installErr}
+		if a.updateInvalidate != nil {
+			a.updateInvalidate()
+		}
+	}()
+}
+
 func (a *App) checkForUpdates() {
 	if a.updateChecking {
 		return
 	}
-	key, err := hex.DecodeString(version.SigningPublicKeyHex)
-	if err != nil || len(key) != ed25519.PublicKeySize {
+	key, err := ed25519PublicKey()
+	if err != nil {
 		a.availableUpdate = nil
-		a.updateStatus = "Signed updates aren't enabled for this build yet."
+		a.updateStatus = "Updates are unavailable for this installation."
 		return
 	}
 	a.updateChecking = true
@@ -129,8 +221,16 @@ func (a *App) checkForUpdates() {
 }
 
 func signingKeyConfigured() bool {
+	_, err := ed25519PublicKey()
+	return err == nil
+}
+
+func ed25519PublicKey() (ed25519.PublicKey, error) {
 	key, err := hex.DecodeString(version.SigningPublicKeyHex)
-	return err == nil && len(key) == ed25519.PublicKeySize
+	if err != nil || len(key) != ed25519.PublicKeySize {
+		return nil, fmt.Errorf("invalid signing public key")
+	}
+	return ed25519.PublicKey(key), nil
 }
 
 func (a *App) updates(gtx layout.Context) layout.Dimensions {
@@ -156,9 +256,9 @@ func (a *App) updatesContent(gtx layout.Context) layout.Dimensions {
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							if a.updateStatus == "" {
 								if !signingKeyConfigured() {
-									return a.text("Signed update checks aren't enabled for this build.", 13, a.palette.Muted)(gtx)
+									return a.text("Update checks are unavailable for this installation.", 13, a.palette.Muted)(gtx)
 								}
-								return a.text("Updates are verified with a trusted release signature.", 13, a.palette.Muted)(gtx)
+								return a.text("Waycord will let you know when an update is ready.", 13, a.palette.Muted)(gtx)
 							}
 							color := a.palette.Muted
 							if a.availableUpdate != nil {
@@ -219,6 +319,17 @@ func (a *App) updatesContent(gtx layout.Context) layout.Dimensions {
 								layout.Rigid(a.text("Version "+a.availableUpdate.Payload.Version, 17, a.palette.Text)),
 								vspace(8),
 								layout.Rigid(a.text(a.availableUpdate.Notes, 14, a.palette.Muted)),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									if !a.updateInstalling {
+										return layout.Dimensions{}
+									}
+									return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+										vspace(12),
+										layout.Rigid(a.updateProgressBar),
+										vspace(5),
+										layout.Rigid(a.text(a.updateProgressLabel(), 12, a.palette.Muted)),
+									)
+								}),
 							)
 						}))
 					}),
@@ -226,10 +337,63 @@ func (a *App) updatesContent(gtx layout.Context) layout.Dimensions {
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return a.pill(gtx, &a.updateOpenButton, "Release notes", false)
 					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if a.updateInstaller == nil {
+							return layout.Inset{Left: 8}.Layout(gtx, a.text("Use your usual installation method to update Waycord.", 13, a.palette.Muted))
+						}
+						if a.updateInstalling {
+							return layout.Dimensions{}
+						}
+						return layout.Spacer{Width: 8}.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if a.updateInstaller == nil {
+							return layout.Dimensions{}
+						}
+						if a.updateInstalling {
+							return layout.Dimensions{}
+						}
+						label, button := "Install update", &a.updateInstallButton
+						if a.updateStaged {
+							label, button = "Restart to update", &a.updateRestartButton
+						}
+						return a.pill(gtx, button, label, a.updateStaged)
+					}),
 				)
 			}),
 		)
 	})
+}
+
+func (a *App) updateProgressLabel() string {
+	if a.updateTotal <= 0 {
+		return "Downloading update…"
+	}
+	pct := a.updateDownloaded * 100 / a.updateTotal
+	if pct > 100 {
+		pct = 100
+	}
+	return fmt.Sprintf("Downloading update… %d%%", pct)
+}
+
+func (a *App) updateProgressBar(gtx layout.Context) layout.Dimensions {
+	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(4))
+	if size.X <= 0 {
+		return layout.Dimensions{}
+	}
+	track := image.Rectangle{Max: size}
+	paint.FillShape(gtx.Ops, a.palette.Surface2, clip.UniformRRect(track, gtx.Dp(2)).Op(gtx.Ops))
+	if a.updateTotal > 0 && a.updateDownloaded > 0 {
+		fraction := float64(a.updateDownloaded) / float64(a.updateTotal)
+		if fraction > 1 {
+			fraction = 1
+		}
+		fill := image.Rect(0, 0, int(float64(size.X)*fraction), size.Y)
+		if fill.Dx() > 0 {
+			paint.FillShape(gtx.Ops, a.palette.Accent, clip.UniformRRect(fill, gtx.Dp(2)).Op(gtx.Ops))
+		}
+	}
+	return layout.Dimensions{Size: size}
 }
 
 func openReleasePage(address string) error { return platform.OpenURL(address) }

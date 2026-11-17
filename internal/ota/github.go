@@ -22,6 +22,7 @@ type Update struct {
 	Payload    Payload
 	Notes      string
 	ReleaseURL string
+	manifest   []byte
 }
 
 // GitHubSource resolves a channel's latest release to its platform manifest.
@@ -170,7 +171,7 @@ func (s GitHubSource) Check(ctx context.Context, channel, goos, goarch, installe
 		notes = strings.ToValidUTF8(notes[:16<<10], "�") + "\n…"
 	}
 	releaseURL := "https://github.com/" + url.PathEscape(s.Owner) + "/" + url.PathEscape(s.Repository) + "/releases/tag/" + url.PathEscape(latest.TagName)
-	return Update{Available: true, Payload: payload, Notes: notes, ReleaseURL: releaseURL}, nil
+	return Update{Available: true, Payload: payload, Notes: notes, ReleaseURL: releaseURL, manifest: append([]byte(nil), manifest...)}, nil
 }
 
 func secureGitHubClient(apiBase string) *http.Client {
