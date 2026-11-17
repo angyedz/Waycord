@@ -16,6 +16,9 @@ import (
 func (a *App) chat(gtx layout.Context) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			if a.messageList.ScrollToEnd && !messageHistoryOverflows(a.messageList.Position.Length, gtx.Constraints.Max.Y) {
+				a.messageList.ScrollToEnd = false
+			}
 			visible := a.visibleMessages()
 			if len(visible) == 0 {
 				message := "No messages in this channel yet."

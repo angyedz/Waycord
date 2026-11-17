@@ -467,7 +467,7 @@ func (a *App) sendPreview() {
 		}
 		a.resetMessageTextState(a.editTarget)
 		a.cancelEdit()
-		a.messageList.ScrollToEnd = true
+		a.scrollMessagesToLatest()
 		return
 	}
 	attachment := a.attachmentDrafts[key]
@@ -486,7 +486,7 @@ func (a *App) sendPreview() {
 	delete(a.attachmentDrafts, key)
 	a.composer.SetText("")
 	a.replyTarget = -1
-	a.messageList.ScrollToEnd = true
+	a.scrollMessagesToLatest()
 }
 
 func (a *App) sendMediaPreview(media mock.Media) {
@@ -501,7 +501,7 @@ func (a *App) sendMediaPreview(media mock.Media) {
 		Self: true, Media: &copy,
 	})
 	a.emojiOpen = false
-	a.messageList.ScrollToEnd = true
+	a.scrollMessagesToLatest()
 }
 
 func (a *App) switchConversation(direct bool, server, channel int) {
