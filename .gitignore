@@ -1,0 +1,20 @@
+# Go build outputs
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+/coverage/
+
+# Local releases and signing material
+*.key
+*.priv
+*.pem
+*.p12
+/.waycord/
+release-private/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
