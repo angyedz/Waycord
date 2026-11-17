@@ -46,10 +46,15 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 			progress := a.emojiSlide.layoutProgress(gtx, a.emojiOpen)
 			return a.animatedEmojiPicker(gtx, progress)
 		}),
+		layout.Rigid(a.attachmentDraft),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: 8, Bottom: 14, Left: 20, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return rounded(gtx, a.palette.Surface, 24, padding(layout.Inset{Left: 18, Right: 6, Top: 5, Bottom: 5}, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return a.iconControl(gtx, &a.attachButton, a.attachIcon, 32, 20, "Attach file")
+						}),
+						hspace(6),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							input := material.Editor(a.theme, &a.composer, "Write a message…")
 							input.TextSize = 14
@@ -72,18 +77,17 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 func (a *App) message(gtx layout.Context, index int, m mock.Message, grouped bool) layout.Dimensions {
 	gtx.Constraints.Min.X = gtx.Constraints.Max.X
 	w := a.reactionWidget(index)
-	dim := layout.Stack{Alignment: layout.NE}.Layout(gtx,
-		layout.Stacked(func(gtx layout.Context) layout.Dimensions { return a.messageContentGrouped(gtx, index, m, grouped) }),
-		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
-			if !w.hovered && a.reactionTarget != index {
-				return layout.Dimensions{Size: gtx.Constraints.Min}
-			}
-			return layout.NE.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				gtx.Constraints.Min.X, gtx.Constraints.Min.Y = 0, 0
-				return a.reactionToolbar(gtx, index)
-			})
-		}),
-	)
+	dim := a.messageContentGrouped(gtx, index, m, grouped)
+	if w.hovered || a.reactionTarget == index {
+		toolbar := gtx
+		toolbar.Constraints.Min = image.Point{}
+		macro := op.Record(gtx.Ops)
+		toolbarSize := a.reactionToolbar(toolbar, index).Size
+		call := macro.Stop()
+		offset := op.Offset(image.Pt(max(0, dim.Size.X-toolbarSize.X), 0)).Push(gtx.Ops)
+		call.Add(gtx.Ops)
+		offset.Pop()
+	}
 	a.messageHover(gtx, index, dim.Size)
 	if a.contextShown == index {
 		progress := a.contextSlide.layoutProgress(gtx, a.contextTarget == index)
@@ -153,8 +157,12 @@ func (a *App) messageContentGrouped(gtx layout.Context, index int, m mock.Messag
 					return layout.Spacer{Height: 4}.Layout(gtx)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if m.Body == "" {
+						return layout.Dimensions{}
+					}
 					return a.messageBody(gtx, index, m.Body)
 				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.attachmentCard(gtx, m.Attachment) }),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.reactionRow(gtx, index) }),
 			)
 		}),

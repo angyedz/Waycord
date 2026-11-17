@@ -11,6 +11,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/angyedz/Waycord/internal/core/attachments"
 	"github.com/angyedz/Waycord/internal/ota"
 	"github.com/angyedz/Waycord/internal/ui/mock"
 )
@@ -58,6 +59,41 @@ func TestMessagesGroupOnlySameAuthorConversationAndMinute(t *testing.T) {
 		if messagesGroup(a, candidate) {
 			t.Errorf("messages grouped across %s", name)
 		}
+	}
+}
+
+func TestMessageHoverDoesNotChangeRowHeight(t *testing.T) {
+	app := New()
+	var ops op.Ops
+	gtx := layout.Context{Ops: &ops, Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}, Constraints: layout.Constraints{Max: image.Pt(600, 500)}}
+	message := mock.Message{Author: "mira", Body: "Short message"}
+	for _, grouped := range []bool{false, true} {
+		app.reactionWidget(0).hovered = false
+		ops.Reset()
+		before := app.message(gtx, 0, message, grouped).Size
+		app.reactionWidget(0).hovered = true
+		ops.Reset()
+		after := app.message(gtx, 0, message, grouped).Size
+		if before != after {
+			t.Fatalf("grouped=%t: hover changed dimensions from %v to %v", grouped, before, after)
+		}
+	}
+}
+
+func TestAttachmentDraftStaysInItsConversation(t *testing.T) {
+	app := New()
+	file := &attachments.Attachment{Name: "note.txt", Data: []byte("hello")}
+	app.attachmentDrafts[app.conversationKey()] = file
+	app.direct = true
+	app.sendPreview()
+	if got := len(app.messages); got != len(mock.Messages) {
+		t.Fatalf("attachment from another conversation was sent: %d", got)
+	}
+	app.direct = false
+	app.sendPreview()
+	last := app.messages[len(app.messages)-1]
+	if last.Attachment != file || last.Body != "" || app.attachmentDrafts[app.conversationKey()] != nil {
+		t.Fatalf("attachment draft not sent and cleared: %+v", last)
 	}
 }
 

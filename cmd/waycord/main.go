@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,7 +11,9 @@ import (
 	"gioui.org/app"
 	"gioui.org/op"
 	"gioui.org/unit"
+	"gioui.org/x/explorer"
 
+	"github.com/angyedz/Waycord/internal/core/attachments"
 	"github.com/angyedz/Waycord/internal/ota"
 	"github.com/angyedz/Waycord/internal/storage"
 	"github.com/angyedz/Waycord/internal/ui"
@@ -29,6 +32,22 @@ func run() error {
 	w := new(app.Window)
 	w.Option(app.Title("Waycord — Preview"), app.Size(unit.Dp(1100), unit.Dp(740)), app.MinSize(unit.Dp(800), unit.Dp(540)))
 	view := ui.New()
+	chooser := explorer.NewExplorer(w)
+	view.ConfigureAttachments(func() (*attachments.Attachment, error) {
+		file, err := chooser.ChooseFile()
+		if errors.Is(err, explorer.ErrUserDecline) {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+		name := "Attachment"
+		if named, ok := file.(interface{ Name() string }); ok {
+			name = named.Name()
+		}
+		return attachments.Read(name, file)
+	})
 	if configDir, err := os.UserConfigDir(); err != nil {
 		log.Print("Waycord update preferences: ", err)
 	} else {
@@ -50,7 +69,9 @@ func run() error {
 	var nextHealthPulse time.Time
 	var healthObservationEnds time.Time
 	for {
-		switch event := w.Event().(type) {
+		event := w.Event()
+		chooser.ListenEvents(event)
+		switch event := event.(type) {
 		case app.DestroyEvent:
 			return event.Err
 		case app.FrameEvent:

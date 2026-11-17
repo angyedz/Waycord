@@ -17,7 +17,9 @@ import (
 	"gioui.org/widget/material"
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
+	"github.com/angyedz/Waycord/internal/core/attachments"
 	"github.com/angyedz/Waycord/internal/core/reactions"
+	"github.com/angyedz/Waycord/internal/core/voicepreview"
 	"github.com/angyedz/Waycord/internal/ota"
 	uiMarkdown "github.com/angyedz/Waycord/internal/ui/markdown"
 	"github.com/angyedz/Waycord/internal/ui/mock"
@@ -41,11 +43,26 @@ type App struct {
 	directButton, serverButton, contactButton widget.Clickable
 	sidebarButton, profileButton              widget.Clickable
 	membersButton                             widget.Clickable
+	voiceJoin, voiceLeave                     widget.Clickable
+	voiceMute, voiceDeafen                    widget.Clickable
+	voiceCamera, voiceScreen                  widget.Clickable
+	voice                                     voicepreview.State
+	micIcon, micOffIcon, headsetIcon          *widget.Icon
+	videoIcon, videoOffIcon                   *widget.Icon
+	screenIcon, screenOffIcon, hangupIcon     *widget.Icon
 	sidebar                                   sidebarState
 	menuIcon                                  *widget.Icon
 	sendIcon                                  *widget.Icon
 	settingsIcon                              *widget.Icon
 	copyIcon                                  *widget.Icon
+	attachIcon                                *widget.Icon
+	attachButton, removeAttachmentButton      widget.Clickable
+	attachmentDrafts                          map[string]*attachments.Attachment
+	attachmentResults                         chan attachmentResult
+	chooseAttachment                          func() (*attachments.Attachment, error)
+	attachmentBusy                            bool
+	attachmentError                           string
+	attachmentPreviews                        attachmentPreviewCache
 	membersIcon                               *widget.Icon
 	interactions                              map[*widget.Clickable]*interactionState
 	emojiIcon                                 *widget.Icon
@@ -101,8 +118,19 @@ func New() *App {
 	a.menuIcon, _ = widget.NewIcon(icons.NavigationMenu)
 	a.sendIcon, _ = widget.NewIcon(icons.ContentSend)
 	a.settingsIcon, _ = widget.NewIcon(icons.ActionSettings)
+	a.attachIcon, _ = widget.NewIcon(icons.ContentAddCircleOutline)
+	a.attachmentDrafts = make(map[string]*attachments.Attachment)
+	a.attachmentResults = make(chan attachmentResult, 1)
 	a.copyIcon, _ = widget.NewIcon(icons.ContentContentCopy)
 	a.membersIcon, _ = widget.NewIcon(icons.SocialPeople)
+	a.micIcon, _ = widget.NewIcon(icons.AVMic)
+	a.micOffIcon, _ = widget.NewIcon(icons.AVMicOff)
+	a.headsetIcon, _ = widget.NewIcon(icons.HardwareHeadset)
+	a.videoIcon, _ = widget.NewIcon(icons.AVVideocam)
+	a.videoOffIcon, _ = widget.NewIcon(icons.AVVideocamOff)
+	a.screenIcon, _ = widget.NewIcon(icons.CommunicationScreenShare)
+	a.screenOffIcon, _ = widget.NewIcon(icons.CommunicationStopScreenShare)
+	a.hangupIcon, _ = widget.NewIcon(icons.CommunicationCallEnd)
 	a.emojiIcon, _ = widget.NewIcon(icons.SocialSentimentSatisfied)
 	a.theme.Palette = material.Palette{Bg: a.palette.Canvas, Fg: a.palette.Text, ContrastBg: a.palette.Accent, ContrastFg: a.palette.Rail}
 	a.messageMarkdown = uiMarkdown.NewCache(uiMarkdown.New(theme.TextFamilies, a.palette.Muted, a.palette.Accent), 64)
@@ -114,6 +142,7 @@ func New() *App {
 }
 
 func (a *App) process(gtx layout.Context) {
+	a.processAttachmentResults()
 	a.processUpdateChecks()
 	a.processContextMenu(gtx)
 	a.processReactions(gtx)
@@ -135,6 +164,31 @@ func (a *App) process(gtx layout.Context) {
 	}
 	if a.membersButton.Clicked(gtx) {
 		a.membersOpen = !a.membersOpen
+	}
+	if a.voiceJoin.Clicked(gtx) {
+		a.voice.Join()
+	}
+	if a.voiceLeave.Clicked(gtx) {
+		a.voice.Leave()
+	}
+	if a.voiceMute.Clicked(gtx) {
+		a.voice.ToggleMute()
+	}
+	if a.voiceDeafen.Clicked(gtx) {
+		a.voice.ToggleDeafen()
+	}
+	if a.voiceCamera.Clicked(gtx) {
+		a.voice.ToggleCamera()
+	}
+	if a.voiceScreen.Clicked(gtx) {
+		a.voice.ToggleScreen()
+	}
+	if a.attachButton.Clicked(gtx) {
+		a.beginAttachmentSelection()
+	}
+	if a.removeAttachmentButton.Clicked(gtx) {
+		delete(a.attachmentDrafts, a.conversationKey())
+		a.attachmentError = ""
 	}
 	a.sidebar.update(gtx)
 	if a.directButton.Clicked(gtx) || a.contactButton.Clicked(gtx) {
@@ -208,11 +262,14 @@ func (a *App) process(gtx layout.Context) {
 }
 func (a *App) sendPreview() {
 	body := strings.TrimSpace(a.composer.Text())
-	if body == "" {
+	key := a.conversationKey()
+	attachment := a.attachmentDrafts[key]
+	if body == "" && attachment == nil {
 		return
 	}
 	now := time.Now()
-	a.messages = append(a.messages, mock.Message{Channel: a.activeChannel, Direct: a.direct, Author: "You", Time: now.Format("15:04"), SentAt: now, Body: body, Self: true})
+	a.messages = append(a.messages, mock.Message{Channel: a.activeChannel, Direct: a.direct, Author: "You", Time: now.Format("15:04"), SentAt: now, Body: body, Self: true, Attachment: attachment})
+	delete(a.attachmentDrafts, key)
 	a.composer.SetText("")
 	a.messageList.ScrollToEnd = true
 }
@@ -244,6 +301,7 @@ func (a *App) Layout(gtx layout.Context) layout.Dimensions {
 										})),
 									)
 								}),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.voicePanel(gtx, width >= 120) }),
 								layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.userPanel(gtx, width >= 120) }),
 							)
 						})(gtx)
@@ -309,6 +367,9 @@ func (a *App) channelRail(gtx layout.Context) layout.Dimensions {
 						return a.clickLabel(gtx, &a.channelButtons[i], "#  "+n, i == a.activeChannel && !a.updatesView)
 					}), vspace(4))
 				}
+				kids = append(kids, vspace(8), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return a.clickLabel(gtx, &a.voiceJoin, "◖  Lounge", a.voice.Connected)
+				}))
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx, kids...)
 			})
 		}),

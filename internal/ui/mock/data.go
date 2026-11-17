@@ -2,16 +2,21 @@
 // preview. It never authenticates to or sends requests to Discord.
 package mock
 
-import "time"
+import (
+	"time"
+
+	"github.com/angyedz/Waycord/internal/core/attachments"
+)
 
 type Message struct {
-	Channel int
-	Author  string
-	Time    string
-	Body    string
-	Self    bool
-	Direct  bool
-	SentAt  time.Time
+	Channel    int
+	Author     string
+	Time       string
+	Body       string
+	Self       bool
+	Direct     bool
+	SentAt     time.Time
+	Attachment *attachments.Attachment
 }
 
 var Channels = []string{"general", "dev-chat", "showcase", "ideas"}

@@ -16,7 +16,25 @@ func (a *App) userPanel(gtx layout.Context, expanded bool) layout.Dimensions {
 				}))),
 				hspace(8),
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{Axis: layout.Vertical}.Layout(gtx, layout.Rigid(a.text("You", 13, a.palette.Text)), layout.Rigid(a.text("Offline", 11, a.palette.Subtle)))
+					status := "Offline"
+					if a.voice.Connected {
+						status = "In Lounge"
+					}
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx, layout.Rigid(a.text("You", 13, a.palette.Text)), layout.Rigid(a.text(status, 11, a.palette.Subtle)))
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					icon, label := a.micIcon, "Mute microphone"
+					if a.voice.Muted {
+						icon, label = a.micOffIcon, "Unmute microphone"
+					}
+					return a.iconControl(gtx, &a.voiceMute, icon, 30, 17, label)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					label := "Deafen"
+					if a.voice.Deafened {
+						label = "Undeafen"
+					}
+					return a.iconControl(gtx, &a.voiceDeafen, a.headsetIcon, 30, 17, label)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return a.settingsControl(gtx)
