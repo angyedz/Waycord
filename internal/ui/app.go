@@ -13,15 +13,17 @@ import (
 
 // App contains UI state only. Future protocol/media services stay outside it.
 type App struct {
-	palette                               theme.Palette
-	theme                                 *material.Theme
-	channelButtons                        [4]widget.Clickable
-	chatButton, updatesButton, sendButton widget.Clickable
-	activeChannel                         int
-	updatesView                           bool
-	messageList                           layout.List
-	composer                              widget.Editor
-	messages                              []mock.Message
+	palette                                   theme.Palette
+	theme                                     *material.Theme
+	channelButtons                            [4]widget.Clickable
+	chatButton, updatesButton, sendButton     widget.Clickable
+	directButton, serverButton, contactButton widget.Clickable
+	activeChannel                             int
+	updatesView                               bool
+	direct                                    bool
+	messageList                               layout.List
+	composer                                  widget.Editor
+	messages                                  []mock.Message
 }
 
 func New() *App {
@@ -36,11 +38,23 @@ func New() *App {
 }
 
 func (a *App) process(gtx layout.Context) {
+	if a.directButton.Clicked(gtx) || a.contactButton.Clicked(gtx) {
+		a.direct, a.updatesView = true, false
+		a.messageList.Position = layout.Position{}
+		a.messageList.ScrollToEnd = false
+	}
+	if a.serverButton.Clicked(gtx) {
+		a.direct, a.updatesView = false, false
+		a.messageList.Position = layout.Position{}
+		a.messageList.ScrollToEnd = false
+	}
 	for i := range a.channelButtons {
 		if a.channelButtons[i].Clicked(gtx) {
 			a.activeChannel = i
 			a.updatesView = false
+			a.direct = false
 			a.messageList.Position = layout.Position{}
+			a.messageList.ScrollToEnd = false
 		}
 	}
 	if a.chatButton.Clicked(gtx) {
@@ -67,7 +81,7 @@ func (a *App) sendPreview() {
 	if body == "" {
 		return
 	}
-	a.messages = append(a.messages, mock.Message{Channel: a.activeChannel, Author: "You", Time: "now", Body: body, Self: true})
+	a.messages = append(a.messages, mock.Message{Channel: a.activeChannel, Direct: a.direct, Author: "You", Time: "now", Body: body, Self: true})
 	a.composer.SetText("")
 	a.messageList.ScrollToEnd = true
 }
@@ -84,14 +98,15 @@ func (a *App) Layout(gtx layout.Context) layout.Dimensions {
 }
 
 func (a *App) serverRail(gtx layout.Context) layout.Dimensions {
-	return rounded(gtx, a.palette.Rail, 0, inset(8, func(gtx layout.Context) layout.Dimensions {
-		children := []layout.FlexChild{
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return rounded(gtx, a.palette.Accent, 15, inset(10, a.text("W", 21, a.palette.Rail)))
-			}), vspace(12),
-		}
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
-	}))
+	return rounded(gtx, a.palette.Rail, 0, func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Top: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.railButton(gtx, &a.directButton, "@", a.direct) }),
+				vspace(10),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.railButton(gtx, &a.serverButton, "W", !a.direct) }),
+			)
+		})
+	})
 }
 
 func (a *App) channelRail(gtx layout.Context) layout.Dimensions {
@@ -100,13 +115,25 @@ func (a *App) channelRail(gtx layout.Context) layout.Dimensions {
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return fixedHeight(58, inset(14, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-						layout.Rigid(a.text("Waycord", 18, a.palette.Text)),
-						vspace(3), layout.Rigid(a.text("YOUR SPACE", 10, a.palette.Subtle)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if a.direct {
+								return a.text("Messages", 18, a.palette.Text)(gtx)
+							}
+							return a.text("Waycord", 18, a.palette.Text)(gtx)
+						}),
 					)
 				}))(gtx)
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return layout.Inset{Left: 8, Right: 8, Top: 12}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					if a.direct {
+						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+							layout.Rigid(inset(9, a.text("DIRECT MESSAGES", 11, a.palette.Subtle))),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return a.clickLabel(gtx, &a.contactButton, "mira", !a.updatesView)
+							}),
+						)
+					}
 					kids := []layout.FlexChild{
 						layout.Rigid(inset(9, a.text("CHANNELS", 11, a.palette.Subtle))), vspace(5),
 					}
@@ -121,10 +148,12 @@ func (a *App) channelRail(gtx layout.Context) layout.Dimensions {
 				})
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return rounded(gtx, a.palette.Surface, 0, inset(14, func(gtx layout.Context) layout.Dimensions {
+				return rounded(gtx, a.palette.Surface, 0, inset(10, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-						layout.Rigid(a.text("●  Offline preview", 13, a.palette.Positive)),
-						vspace(3), layout.Rigid(a.text("No account connected", 11, a.palette.Muted)),
+						layout.Rigid(a.text("●  Offline", 13, a.palette.Muted)),
+						vspace(6), layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return a.pill(gtx, &a.updatesButton, "Settings", a.updatesView)
+						}),
 					)
 				}))
 			}),
@@ -139,6 +168,9 @@ func (a *App) workspace(gtx layout.Context) layout.Dimensions {
 			if a.updatesView {
 				return a.updates(gtx)
 			}
+			if a.direct && gtx.Constraints.Max.X >= gtx.Dp(730) {
+				return layout.Flex{}.Layout(gtx, layout.Flexed(1, a.chat), layout.Rigid(fixedWidth(210, a.directProfile)))
+			}
 			return a.chat(gtx)
 		}),
 	)
@@ -149,15 +181,19 @@ func (a *App) header(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					title := "# " + mock.Channels[a.activeChannel]
+					if a.direct {
+						title = "@ mira"
+					}
 					if a.updatesView {
 						title = "Settings / Updates"
 					}
 					return a.text(title, 19, a.palette.Text)(gtx)
 				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.pill(gtx, &a.chatButton, "Chat", !a.updatesView) }),
-				hspace(10),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return a.pill(gtx, &a.updatesButton, "Updates", a.updatesView)
+					if !a.updatesView {
+						return layout.Dimensions{}
+					}
+					return a.pill(gtx, &a.chatButton, "Back", false)
 				}),
 			)
 		})

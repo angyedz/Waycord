@@ -27,6 +27,7 @@ Single source of truth: `internal/ui/theme/palette.go`.
 - **Server rail:** 60dp, full window height, strong contrast with the rest.
 - **Channel rail:** 200dp, grouped text/voice channels; bottom connection-state section.
 - **Workspace:** flexible width, 58dp header, virtualized message list and message composer.
+- **Direct messages:** their own navigation entry and contact list; a compact profile for the selected contact appears only in the direct conversation when there is room.
 - **Updates screen:** separate workspace route with channel picker and explicit explanation of signed OTA steps.
 - **Minimum window:** 800 × 540dp; responsive reflow below this size is future work.
 

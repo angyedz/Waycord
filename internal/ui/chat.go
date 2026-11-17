@@ -17,7 +17,7 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			var visible []mock.Message
 			for _, m := range a.messages {
-				if m.Channel == a.activeChannel {
+				if m.Direct == a.direct && (a.direct || m.Channel == a.activeChannel) {
 					visible = append(visible, m)
 				}
 			}
