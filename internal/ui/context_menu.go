@@ -45,6 +45,7 @@ func (a *App) processContextMenu(gtx layout.Context) {
 			e, ok := raw.(pointer.Event)
 			if ok && e.Source == pointer.Mouse && e.Buttons.Contain(pointer.ButtonSecondary) {
 				a.contextTarget = index
+				a.contextShown = index
 				a.contextPosition = e.Position.Round()
 				a.reactionTarget = -1
 			}

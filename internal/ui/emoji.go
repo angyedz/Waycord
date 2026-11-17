@@ -1,8 +1,6 @@
 package ui
 
-import (
-	"gioui.org/layout"
-)
+import "gioui.org/layout"
 
 var emojiOptions = [...]string{"😀", "😂", "😊", "😍", "👍", "❤️", "🎉", "🔥"}
 
@@ -23,4 +21,10 @@ func (a *App) emojiPicker(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Alignment: layout.Middle}.Layout(gtx, children...)
 		}))
 	})
+}
+
+// animatedEmojiPicker expands from the composer while keeping its controls
+// clipped to the visible portion during both opening and closing.
+func (a *App) animatedEmojiPicker(gtx layout.Context, progress float32) layout.Dimensions {
+	return animatedReveal(gtx, progress, 48, a.emojiPicker)
 }

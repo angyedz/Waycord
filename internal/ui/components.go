@@ -78,7 +78,9 @@ func (a *App) pill(gtx layout.Context, b *widget.Clickable, title string, active
 		fg = a.palette.Text
 	}
 	hover := a.palette.AccentDim
-	if active { hover = a.palette.Surface2 }
+	if active {
+		hover = a.palette.Surface2
+	}
 	bg = a.interactionColor(gtx, b, bg, hover)
 	return b.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return rounded(gtx, bg, 20, func(gtx layout.Context) layout.Dimensions {

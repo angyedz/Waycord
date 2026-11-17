@@ -2,12 +2,15 @@ package ui
 
 import (
 	"image"
+	"strconv"
 	"strings"
 	"time"
 
 	"gioui.org/font"
 	"gioui.org/io/key"
 	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/op/clip"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"golang.org/x/exp/shiny/materialdesign/icons"
@@ -34,6 +37,7 @@ type App struct {
 	emojiButton                                widget.Clickable
 	emojiChoices                               [8]widget.Clickable
 	emojiOpen                                  bool
+	emojiSlide                                 panelTransition
 	sendHover                                  float32
 	sendHoverTime                              time.Time
 	activeChannel                              int
@@ -41,6 +45,8 @@ type App struct {
 	direct                                     bool
 	profileOpen                                bool
 	profileSlide                               panelTransition
+	contentKey                                 string
+	contentSlide                               panelTransition
 	messageList                                layout.List
 	composer                                   widget.Editor
 	messages                                   []mock.Message
@@ -48,12 +54,14 @@ type App struct {
 	reactionWidgets                            map[int]*reactionWidget
 	reactionTarget                             int
 	contextTarget                              int
+	contextShown                               int
 	contextPosition                            image.Point
+	contextSlide                               panelTransition
 	contextBackdrop, contextCopy, contextReact widget.Clickable
 }
 
 func New() *App {
-	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, palette: theme.Dark, activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}}
+	a := &App{reactionWidgets: make(map[int]*reactionWidget), reactionTarget: -1, contextTarget: -1, contextShown: -1, palette: theme.Dark, activeChannel: 1, sidebar: newSidebarState(), profileOpen: true, messageList: layout.List{Axis: layout.Vertical}}
 	a.theme = material.NewTheme()
 	if shaper, err := theme.NewShaper(); err == nil {
 		a.theme.Shaper = shaper
@@ -241,18 +249,50 @@ func (a *App) channelRail(gtx layout.Context) layout.Dimensions {
 func (a *App) workspace(gtx layout.Context) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(a.header),
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			if a.updatesView {
-				return a.updates(gtx)
-			}
-			showProfile := a.direct && a.profileOpen && gtx.Constraints.Max.X >= gtx.Dp(730)
-			progress := a.profileSlide.layoutProgress(gtx, showProfile)
-			if progress > 0 && a.direct {
-				return layout.Flex{}.Layout(gtx, layout.Flexed(1, a.chat), layout.Rigid(a.slidingProfile(progress)))
-			}
-			return a.chat(gtx)
-		}),
+		layout.Flexed(1, a.animatedWorkspaceContent),
 	)
+}
+
+func (a *App) animatedWorkspaceContent(gtx layout.Context) layout.Dimensions {
+	key := "server:" + strconv.Itoa(a.activeChannel)
+	if a.direct {
+		key = "direct:mira"
+	}
+	if a.updatesView {
+		key = "updates"
+	}
+	if a.contentKey == "" {
+		a.contentKey = key
+		a.contentSlide.value, a.contentSlide.from, a.contentSlide.target = 1, 1, 1
+		a.contentSlide.started = gtx.Now
+	} else if a.contentKey != key {
+		a.contentKey = key
+		a.contentSlide.value, a.contentSlide.from, a.contentSlide.target = 0, 0, 0
+		a.contentSlide.started = time.Time{}
+	}
+	progress := a.contentSlide.advanceTo(gtx.Now, 1, 200*time.Millisecond)
+	if progress < 1 {
+		gtx.Execute(op.InvalidateCmd{})
+	}
+	width := gtx.Dp(14)
+	shift := int(float32(width) * (1 - progress))
+	clipArea := clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops)
+	offset := op.Offset(image.Pt(shift, 0)).Push(gtx.Ops)
+	var child layout.Dimensions
+	if a.updatesView {
+		child = a.updates(gtx)
+	} else {
+		showProfile := a.direct && a.profileOpen && gtx.Constraints.Max.X >= gtx.Dp(730)
+		profileProgress := a.profileSlide.layoutProgress(gtx, showProfile)
+		if profileProgress > 0 && a.direct {
+			child = layout.Flex{}.Layout(gtx, layout.Flexed(1, a.chat), layout.Rigid(a.slidingProfile(profileProgress)))
+		} else {
+			child = a.chat(gtx)
+		}
+	}
+	offset.Pop()
+	clipArea.Pop()
+	return child
 }
 func (a *App) header(gtx layout.Context) layout.Dimensions {
 	wide := gtx.Constraints.Max.X >= gtx.Dp(730)

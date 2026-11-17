@@ -31,10 +31,8 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 			})
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if !a.emojiOpen {
-				return layout.Dimensions{}
-			}
-			return a.emojiPicker(gtx)
+			progress := a.emojiSlide.layoutProgress(gtx, a.emojiOpen)
+			return a.animatedEmojiPicker(gtx, progress)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: 8, Bottom: 14, Left: 20, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -75,7 +73,14 @@ func (a *App) message(gtx layout.Context, index int, m mock.Message) layout.Dime
 		}),
 	)
 	a.messageHover(gtx, index, dim.Size)
-	if a.contextTarget == index {
+	if a.contextShown == index {
+		progress := a.contextSlide.layoutProgress(gtx, a.contextTarget == index)
+		if progress == 0 && a.contextTarget != index {
+			a.contextShown = -1
+		}
+		if progress <= 0 {
+			return dim
+		}
 		position := a.contextPosition
 		position.X = max(0, min(position.X, dim.Size.X-gtx.Dp(190)))
 		position.Y = max(0, position.Y)
@@ -83,7 +88,7 @@ func (a *App) message(gtx layout.Context, index int, m mock.Message) layout.Dime
 		offset := op.Offset(image.Pt(position.X, position.Y)).Push(gtx.Ops)
 		menuContext := gtx
 		menuContext.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(190), gtx.Dp(100))}
-		a.contextMenu(menuContext)
+		animatedReveal(menuContext, progress, 82, fixedHeight(82, a.contextMenu))
 		offset.Pop()
 		op.Defer(gtx.Ops, macro.Stop())
 	}

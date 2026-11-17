@@ -20,6 +20,7 @@ type reactionWidget struct {
 	quick      [3]widget.Clickable
 	choices    [len(emojiOptions)]widget.Clickable
 	existing   [len(emojiOptions)]widget.Clickable
+	picker     panelTransition
 }
 
 func (a *App) reactionWidget(index int) *reactionWidget {
@@ -94,28 +95,26 @@ func (a *App) reactionRow(gtx layout.Context, index int) layout.Dimensions {
 			break
 		}
 	}
-	if !hasReaction && a.reactionTarget != index {
+	progress := w.picker.layoutProgress(gtx, a.reactionTarget == index)
+	if !hasReaction && progress <= 0 {
 		return layout.Dimensions{}
 	}
-	return layout.Inset{Top: 4}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				var chips []layout.FlexChild
-				for i, value := range emojiOptions {
-					if !a.reactions.Has(index, value) {
-						continue
-					}
-					i, value := i, value
-					chips = append(chips, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return a.reactionChip(gtx, &w.existing[i], value)
-					}), hspace(4))
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			var chips []layout.FlexChild
+			for i, value := range emojiOptions {
+				if !a.reactions.Has(index, value) {
+					continue
 				}
-				return layout.Flex{Alignment: layout.Middle}.Layout(gtx, chips...)
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				if a.reactionTarget != index {
-					return layout.Dimensions{}
-				}
+				i, value := i, value
+				chips = append(chips, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return a.reactionChip(gtx, &w.existing[i], value)
+				}), hspace(4))
+			}
+			return layout.Flex{Alignment: layout.Middle}.Layout(gtx, chips...)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return animatedReveal(gtx, progress, 42, func(gtx layout.Context) layout.Dimensions {
 				return layout.Inset{Top: 4}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					return rounded(gtx, a.palette.Surface, 12, padding(layout.Inset{Left: 4, Right: 4, Top: 2, Bottom: 2}, func(gtx layout.Context) layout.Dimensions {
 						var choices []layout.FlexChild
@@ -128,9 +127,9 @@ func (a *App) reactionRow(gtx layout.Context, index int) layout.Dimensions {
 						return layout.Flex{Alignment: layout.Middle}.Layout(gtx, choices...)
 					}))
 				})
-			}),
-		)
-	})
+			})
+		}),
+	)
 }
 
 func (a *App) reactionChip(gtx layout.Context, button *widget.Clickable, value string) layout.Dimensions {

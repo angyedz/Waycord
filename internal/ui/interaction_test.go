@@ -5,18 +5,20 @@ import (
 	"time"
 )
 
-func TestInteractionTransitionStopsAtTarget(t *testing.T) {
-	value := advanceInteraction(0, 1, 50*time.Millisecond)
-	if value <= 0 || value >= 1 {
-		t.Fatalf("expected intermediate value, got %v", value)
+func TestPanelTransitionEasesAndSettles(t *testing.T) {
+	var state panelTransition
+	start := time.Unix(1, 0)
+	state.advanceTo(start, 0.6, 130*time.Millisecond)
+	early := state.advanceTo(start.Add(13*time.Millisecond), 0.6, 130*time.Millisecond)
+	if early <= 0 || early >= 0.1 {
+		t.Fatalf("expected a soft easing start, got %v", early)
 	}
-	value = advanceInteraction(value, 1, time.Second)
-	if value != 1 {
-		t.Fatalf("did not settle: %v", value)
+	middle := state.advanceTo(start.Add(65*time.Millisecond), 0.6, 130*time.Millisecond)
+	if middle <= early || middle >= 0.6 {
+		t.Fatalf("expected intermediate progress, got %v", middle)
 	}
-	value = advanceInteraction(value, 0, time.Second)
-	if value != 0 {
-		t.Fatalf("did not return: %v", value)
+	if end := state.advanceTo(start.Add(time.Second), 0.6, 130*time.Millisecond); end != 0.6 {
+		t.Fatalf("did not settle at the target: %v", end)
 	}
 }
 
@@ -31,8 +33,12 @@ func TestProfileTransitionOpensClosesAndReverses(t *testing.T) {
 		t.Fatalf("expected an intermediate opening, got %v", opening)
 	}
 	closing := state.advance(start.Add(75*time.Millisecond), false)
+	if closing != opening {
+		t.Fatalf("reversal jumped from %v to %v", opening, closing)
+	}
+	closing = state.advance(start.Add(100*time.Millisecond), false)
 	if closing >= opening || closing < 0 {
-		t.Fatalf("expected smooth reversal: %v -> %v", opening, closing)
+		t.Fatalf("expected smooth reverse movement: %v -> %v", opening, closing)
 	}
 	if end := state.advance(start.Add(time.Second), false); end != 0 {
 		t.Fatalf("did not close: %v", end)

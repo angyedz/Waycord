@@ -3,7 +3,6 @@ package ui
 import (
 	"image"
 	"image/color"
-	"math"
 	"time"
 
 	"gioui.org/gesture"
@@ -23,13 +22,13 @@ type sidebarState struct {
 	shown          bool
 	width, current float32
 	frameWidth     float32
-	last           time.Time
+	transition     panelTransition
 	drag           gesture.Drag
 	pressX         float32
 }
 
 func newSidebarState() sidebarState {
-	return sidebarState{shown: true, width: 200, current: 200, frameWidth: 200}
+	return sidebarState{shown: true, width: 200, current: 200, frameWidth: 200, transition: panelTransition{value: 200, target: 200}}
 }
 func (s *sidebarState) toggle() { s.shown = !s.shown }
 func clampSidebarWidth(width float32) float32 {
@@ -56,6 +55,8 @@ func (s *sidebarState) update(gtx layout.Context) {
 func (s *sidebarState) dragTo(position, pixelsPerDP float32) {
 	s.width = clampSidebarWidth(s.frameWidth + (position-s.pressX)/pixelsPerDP)
 	s.current = s.width
+	s.transition.value, s.transition.from, s.transition.target = s.current, s.current, s.current
+	s.transition.started = time.Time{}
 }
 
 func (s *sidebarState) animate(gtx layout.Context) unit.Dp {
@@ -63,21 +64,8 @@ func (s *sidebarState) animate(gtx layout.Context) unit.Dp {
 	if s.shown {
 		target = s.width
 	}
-	if s.last.IsZero() || gtx.Now.Before(s.last) {
-		s.last = gtx.Now
-	}
-	elapsed := float32(gtx.Now.Sub(s.last).Seconds())
-	s.last = gtx.Now
-	// Clamp elapsed time so returning from a suspended window remains predictable.
-	if elapsed > 0.05 {
-		elapsed = 0.05
-	}
-	distance := target - s.current
-	step := float32(1400) * elapsed
-	if float32(math.Abs(float64(distance))) <= step || distance == 0 {
-		s.current = target
-	} else {
-		s.current += float32(math.Copysign(float64(step), float64(distance)))
+	s.current = s.transition.advanceTo(gtx.Now, target, 240*time.Millisecond)
+	if s.current != target {
 		gtx.Execute(op.InvalidateCmd{})
 	}
 	return unit.Dp(s.current)

@@ -1,65 +1,87 @@
 package ui
 
 import (
+	"image"
 	"image/color"
-	"math"
 	"time"
 
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
 	"gioui.org/unit"
 	"gioui.org/widget"
 )
 
 type interactionState struct {
-	value float32
-	last  time.Time
+	transition panelTransition
 }
 
 type panelTransition struct {
-	value float32
-	last  time.Time
+	value    float32
+	from     float32
+	target   float32
+	started  time.Time
+	duration time.Duration
 }
 
 func (p *panelTransition) advance(now time.Time, open bool) float32 {
-	if p.last.IsZero() || now.Before(p.last) {
-		p.last = now
-	}
-	elapsed := now.Sub(p.last)
-	if elapsed > 50*time.Millisecond {
-		elapsed = 50 * time.Millisecond
-	}
-	p.last = now
 	target := float32(0)
 	if open {
 		target = 1
 	}
-	p.value = advanceInteraction(p.value, target, elapsed)
+	return p.advanceTo(now, target, 220*time.Millisecond)
+}
+
+func (p *panelTransition) advanceTo(now time.Time, target float32, duration time.Duration) float32 {
+	if p.started.IsZero() || target != p.target || now.Before(p.started) {
+		p.from, p.target, p.started, p.duration = p.value, target, now, duration
+	}
+	if p.duration <= 0 {
+		p.value = p.target
+		return p.value
+	}
+	progress := float32(now.Sub(p.started)) / float32(p.duration)
+	if progress <= 0 {
+		p.value = p.from
+		return p.value
+	}
+	if progress >= 1 {
+		p.value = p.target
+		return p.value
+	}
+	// Smoothstep has zero velocity at both ends, avoiding the abrupt start
+	// and stop that made panels feel like they snapped into place.
+	eased := progress * progress * (3 - 2*progress)
+	p.value = p.from + (p.target-p.from)*eased
 	return p.value
 }
 
 func (p *panelTransition) layoutProgress(gtx layout.Context, open bool) float32 {
 	value := p.advance(gtx.Now, open)
-	if (open && value < 1) || (!open && value > 0) {
+	if value != p.target {
 		gtx.Execute(op.InvalidateCmd{})
 	}
 	return value
 }
 
-// advanceInteraction is independent of frame rate and stops exactly at the target.
-func advanceInteraction(value, target float32, elapsed time.Duration) float32 {
-	step := float32(elapsed.Seconds()) * 8
-	if step < 0 {
-		step = 0
+func animatedReveal(gtx layout.Context, progress float32, height unit.Dp, child layout.Widget) layout.Dimensions {
+	if progress <= 0 {
+		return layout.Dimensions{}
 	}
-	if step > 1 {
-		step = 1
+	fullHeight := gtx.Dp(height)
+	visibleHeight := int(float32(fullHeight) * progress)
+	if visibleHeight < 1 {
+		visibleHeight = 1
 	}
-	if float32(math.Abs(float64(target-value))) <= step {
-		return target
-	}
-	return value + float32(math.Copysign(float64(step), float64(target-value)))
+	area := clip.Rect{Max: image.Pt(gtx.Constraints.Max.X, visibleHeight)}.Push(gtx.Ops)
+	offset := op.Offset(image.Pt(0, visibleHeight-fullHeight)).Push(gtx.Ops)
+	childContext := gtx
+	childContext.Constraints.Min.Y, childContext.Constraints.Max.Y = fullHeight, fullHeight
+	child(childContext)
+	offset.Pop()
+	area.Pop()
+	return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, visibleHeight)}
 }
 
 func mixColor(from, to color.NRGBA, value float32) color.NRGBA {
@@ -83,25 +105,17 @@ func (a *App) interactionColor(gtx layout.Context, button *widget.Clickable, nor
 		if target == 0 {
 			return normal
 		}
-		state = &interactionState{last: gtx.Now}
+		state = &interactionState{}
 		a.interactions[button] = state
 	}
-	elapsed := gtx.Now.Sub(state.last)
-	if elapsed < 0 {
-		elapsed = 0
-	}
-	if elapsed > 50*time.Millisecond {
-		elapsed = 50 * time.Millisecond
-	}
-	state.last = gtx.Now
-	state.value = advanceInteraction(state.value, target, elapsed)
-	if state.value != target {
+	value := state.transition.advanceTo(gtx.Now, target, 130*time.Millisecond)
+	if value != target {
 		gtx.Execute(op.InvalidateCmd{})
 	}
-	if state.value == 0 && target == 0 {
+	if value == 0 && target == 0 {
 		delete(a.interactions, button)
 	}
-	return mixColor(normal, hover, state.value)
+	return mixColor(normal, hover, value)
 }
 
 // iconControl provides a consistent animated surface and a labeled hit target.
