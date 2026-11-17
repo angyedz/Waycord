@@ -36,6 +36,13 @@ func secureURL(address string) error {
 }
 
 func FetchManifest(ctx context.Context, address string, key ed25519.PublicKey) (Payload, error) {
+	return fetchManifest(ctx, address, key, secureClient())
+}
+
+func fetchManifest(ctx context.Context, address string, key ed25519.PublicKey, client *http.Client) (Payload, error) {
+	if len(key) != ed25519.PublicKeySize {
+		return Payload{}, errors.New("no trusted Ed25519 public key configured")
+	}
 	if err := secureURL(address); err != nil {
 		return Payload{}, err
 	}
@@ -43,7 +50,7 @@ func FetchManifest(ctx context.Context, address string, key ed25519.PublicKey) (
 	if err != nil {
 		return Payload{}, err
 	}
-	resp, err := secureClient().Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return Payload{}, err
 	}
@@ -61,6 +68,10 @@ func FetchManifest(ctx context.Context, address string, key ed25519.PublicKey) (
 // Download verifies size and SHA-256 before returning a temporary artifact.
 // The caller owns the returned path and must remove it after installing.
 func Download(ctx context.Context, p Payload, tempDir string) (string, error) {
+	return download(ctx, p, tempDir, secureClient())
+}
+
+func download(ctx context.Context, p Payload, tempDir string, client *http.Client) (string, error) {
 	if err := p.Validate(); err != nil {
 		return "", err
 	}
@@ -74,7 +85,7 @@ func Download(ctx context.Context, p Payload, tempDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	resp, err := secureClient().Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}

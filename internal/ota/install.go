@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -25,9 +26,8 @@ func (s Store) Binary(version string) (string, error) {
 	return filepath.Join(s.Root, "versions", version, BinaryName()), nil
 }
 
-// Install verifies the manifest, downloads and hashes the executable, then stages
-// it. The launcher will promote it only after a successful health handshake.
-func (s Store) Install(ctx context.Context, p Payload) error {
+// install stages a payload whose signature was checked by the caller in this package.
+func (s Store) install(ctx context.Context, p Payload, client *http.Client) error {
 	if err := p.Validate(); err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (s Store) Install(ctx context.Context, p Payload) error {
 	if err = os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
-	temp, err := Download(ctx, p, filepath.Join(s.Root, "downloads"))
+	temp, err := download(ctx, p, filepath.Join(s.Root, "downloads"), client)
 	if err != nil {
 		return err
 	}
@@ -119,17 +119,21 @@ func copyFile(dst, src string) error {
 
 // CheckAndInstall can only be called with an explicitly trusted key.
 func (s Store) CheckAndInstall(ctx context.Context, manifestURL, channel string, pub ed25519.PublicKey) (Payload, error) {
+	return s.checkAndInstall(ctx, manifestURL, channel, pub, secureClient())
+}
+
+func (s Store) checkAndInstall(ctx context.Context, manifestURL, channel string, pub ed25519.PublicKey, client *http.Client) (Payload, error) {
 	if !IsChannel(channel) {
 		return Payload{}, errors.New("invalid OTA channel")
 	}
-	p, err := FetchManifest(ctx, manifestURL, pub)
+	p, err := fetchManifest(ctx, manifestURL, pub, client)
 	if err != nil {
 		return Payload{}, err
 	}
 	if p.Channel != channel {
 		return Payload{}, errors.New("manifest channel mismatch")
 	}
-	if err = s.Install(ctx, p); err != nil {
+	if err = s.install(ctx, p, client); err != nil {
 		return Payload{}, err
 	}
 	return p, nil
