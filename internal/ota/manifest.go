@@ -54,6 +54,9 @@ func (p Payload) Validate() error {
 	if !IsChannel(p.Channel) || !validVersion.MatchString(p.Version) {
 		return errors.New("invalid channel or version")
 	}
+	if _, err := parseVersion(p.Version); err != nil {
+		return fmt.Errorf("invalid version: %w", err)
+	}
 	if (p.Channel == "stable" && strings.Contains(p.Version, "-")) ||
 		(p.Channel == "beta" && !strings.Contains(p.Version, "-beta.")) ||
 		(p.Channel == "nightly" && !strings.Contains(p.Version, "-nightly.")) {
