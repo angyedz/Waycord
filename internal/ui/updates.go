@@ -21,6 +21,7 @@ import (
 const automaticUpdateInterval = 12 * time.Hour
 
 type updateCheckResult struct {
+	id      uint64
 	channel string
 	update  ota.Update
 	err     error
@@ -67,6 +68,8 @@ func (a *App) setUpdatePreferences(channel string, autoCheck bool) {
 	changed := channel != a.updateChannel
 	a.updateChannel, a.updateAutoCheck = channel, autoCheck
 	if changed {
+		a.updateCheckID++
+		a.updateChecking = false
 		if !a.updateStaged {
 			a.availableUpdate = nil
 			a.updateStatus = ""
@@ -106,10 +109,10 @@ func (a *App) processUpdateChecks() {
 	for {
 		select {
 		case result := <-a.updateResult:
-			a.updateChecking = false
-			if result.channel != a.updateChannel {
+			if result.id != a.updateCheckID || result.channel != a.updateChannel {
 				continue
 			}
+			a.updateChecking = false
 			if result.err != nil {
 				a.availableUpdate = nil
 				a.updateStatus = "Couldn't check for updates. Try again later."
@@ -210,16 +213,18 @@ func (a *App) checkForUpdates() {
 		return
 	}
 	a.updateChecking = true
+	a.updateCheckID++
+	requestID := a.updateCheckID
 	a.updateStatus = "Checking for updates…"
 	ctx, cancel := context.WithTimeout(a.updateCtx, 3*time.Minute)
-	go func(channel string, publicKey ed25519.PublicKey) {
+	go func(requestID uint64, channel string, publicKey ed25519.PublicKey) {
 		defer cancel()
 		update, checkErr := a.updateChecker.Check(ctx, channel, runtime.GOOS, runtime.GOARCH, version.Version, publicKey)
-		a.updateResult <- updateCheckResult{channel: channel, update: update, err: checkErr}
+		a.updateResult <- updateCheckResult{id: requestID, channel: channel, update: update, err: checkErr}
 		if a.updateInvalidate != nil {
 			a.updateInvalidate()
 		}
-	}(a.updateChannel, ed25519.PublicKey(key))
+	}(requestID, a.updateChannel, ed25519.PublicKey(key))
 }
 
 func signingKeyConfigured() bool {

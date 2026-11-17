@@ -337,11 +337,12 @@ func TestUpdatePreferenceChangePersistsBeforeApplying(t *testing.T) {
 
 func TestUpdateResultFromPreviousChannelIsIgnored(t *testing.T) {
 	app := New()
-	app.updateChannel = "beta"
+	app.updateChannel = "stable"
+	app.updateCheckID = 2
 	app.updateChecking = true
-	app.updateResult <- updateCheckResult{channel: "stable", update: ota.Update{Available: true}}
+	app.updateResult <- updateCheckResult{id: 1, channel: "stable", update: ota.Update{Available: true}}
 	app.processUpdateChecks()
-	if app.updateChecking || app.availableUpdate != nil || app.updateStatus != "" {
+	if !app.updateChecking || app.availableUpdate != nil || app.updateStatus != "" {
 		t.Fatalf("old channel result changed the update screen: checking=%t update=%+v status=%q", app.updateChecking, app.availableUpdate, app.updateStatus)
 	}
 }

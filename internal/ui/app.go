@@ -148,6 +148,7 @@ type App struct {
 	updateAutoCheck                             bool
 	updateChecking                              bool
 	updateStatus                                string
+	updateCheckID                               uint64
 	updateResult                                chan updateCheckResult
 	updateProgress                              chan updateInstallProgress
 	updateInstallResult                         chan updateInstallResult
