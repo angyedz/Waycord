@@ -89,6 +89,9 @@ func (a *App) visibleMessages() []int {
 			if message.Attachment != nil {
 				searchable += " " + strings.ToLower(message.Attachment.Name)
 			}
+			if message.Media != nil {
+				searchable += " " + strings.ToLower(message.Media.Name)
+			}
 			if !strings.Contains(searchable, query) {
 				continue
 			}

@@ -97,9 +97,14 @@ type App struct {
 	interactions                           map[*widget.Clickable]*interactionState
 	emojiIcon                              *widget.Icon
 	emojiButton                            widget.Clickable
-	emojiChoices                           [8]widget.Clickable
+	gifButton, stickerButton               widget.Clickable
+	mediaTabButtons                        [3]widget.Clickable
+	mediaChoiceButtons                     []widget.Clickable
+	mediaPickerTab                         int
+	emojiPickerChoices                     []widget.Clickable
 	emojiOpen                              bool
 	emojiSlide                             panelTransition
+	emojiPickerHeight                      panelTransition
 	searchOpen                             bool
 	pinsOnly                               bool
 	searchEditor                           widget.Editor
@@ -178,6 +183,8 @@ func New() *App {
 	a.composerDrafts = make(map[string]string)
 	a.serverChannels[0] = a.activeChannel
 	a.attachmentResults = make(chan attachmentResult, 1)
+	a.mediaChoiceButtons = make([]widget.Clickable, len(gifOptions)+len(stickerOptions))
+	a.emojiPickerChoices = make([]widget.Clickable, len(emojiPickerOptions))
 	a.replyIcon, _ = widget.NewIcon(icons.ContentReply)
 	a.moreIcon, _ = widget.NewIcon(icons.NavigationMoreHoriz)
 	a.membersIcon, _ = widget.NewIcon(icons.SocialPeople)
@@ -213,15 +220,36 @@ func (a *App) process(gtx layout.Context) {
 	a.processUpdateChecks()
 	a.processContextMenu(gtx)
 	a.processSearch(gtx)
+	a.processMediaPicker(gtx)
 	a.processReactions(gtx)
 	if a.emojiButton.Clicked(gtx) {
-		a.emojiOpen = !a.emojiOpen
+		a.openMediaPicker(0)
 	}
-	for i := range a.emojiChoices {
-		if a.emojiChoices[i].Clicked(gtx) {
-			a.composer.Insert(emojiOptions[i])
+	if a.gifButton.Clicked(gtx) {
+		a.openMediaPicker(1)
+	}
+	if a.stickerButton.Clicked(gtx) {
+		a.openMediaPicker(2)
+	}
+	for i := range a.mediaTabButtons {
+		if a.mediaTabButtons[i].Clicked(gtx) {
+			a.mediaPickerTab = i
+		}
+	}
+	for i := range a.emojiPickerChoices {
+		if a.emojiPickerChoices[i].Clicked(gtx) {
+			a.composer.Insert(emojiPickerOptions[i])
 			a.emojiOpen = false
 			gtx.Execute(key.FocusCmd{Tag: &a.composer})
+		}
+	}
+	for i := range a.mediaChoiceButtons {
+		if a.mediaChoiceButtons[i].Clicked(gtx) {
+			if i < len(gifOptions) {
+				a.sendMediaPreview(gifOptions[i])
+			} else {
+				a.sendMediaPreview(stickerOptions[i-len(gifOptions)])
+			}
 		}
 	}
 	if a.sidebarButton.Clicked(gtx) {
@@ -374,6 +402,21 @@ func (a *App) sendPreview() {
 	a.messageList.ScrollToEnd = true
 }
 
+func (a *App) sendMediaPreview(media mock.Media) {
+	if (media.Kind != mock.MediaGIF && media.Kind != mock.MediaSticker) || strings.TrimSpace(media.Name) == "" || media.Emoji == "" {
+		return
+	}
+	now := time.Now()
+	copy := media
+	a.messages = append(a.messages, mock.Message{
+		Server: a.activeServer, Channel: a.activeChannel, Direct: a.direct,
+		Author: a.selfProfileName, Time: now.Format("15:04"), SentAt: now,
+		Self: true, Media: &copy,
+	})
+	a.emojiOpen = false
+	a.messageList.ScrollToEnd = true
+}
+
 func (a *App) switchConversation(direct bool, server, channel int) {
 	if server < 0 || server >= len(mock.Servers) || channel < 0 || channel >= len(mock.Servers[server].Channels) {
 		return
@@ -386,6 +429,7 @@ func (a *App) switchConversation(direct bool, server, channel int) {
 	a.composer.SetText(a.composerDrafts[a.conversationKey()])
 	a.contextTarget, a.reactionTarget = -1, -1
 	a.replyTarget = -1
+	a.emojiOpen = false
 	a.searchEditor.SetText("")
 	a.pinsOnly = false
 	a.messageList.Position = layout.Position{}

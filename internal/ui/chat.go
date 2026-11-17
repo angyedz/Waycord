@@ -63,6 +63,12 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 							return input.Layout(gtx)
 						}),
 						hspace(8),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return a.mediaTextControl(gtx, &a.gifButton, 1, "GIF", "Choose a GIF")
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return a.mediaTextControl(gtx, &a.stickerButton, 2, "Sticker", "Choose a sticker")
+						}),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.emojiControl(gtx) }),
 						hspace(4),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -165,6 +171,7 @@ func (a *App) messageContentGrouped(gtx layout.Context, index int, m mock.Messag
 					return a.messageBody(gtx, index, m.Body)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.attachmentCard(gtx, m.Attachment) }),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.mediaCard(gtx, m.Media) }),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.reactionRow(gtx, index) }),
 			)
 		}),

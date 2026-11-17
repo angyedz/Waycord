@@ -21,6 +21,20 @@ type Message struct {
 	Pinned     bool
 	SentAt     time.Time
 	Attachment *attachments.Attachment
+	Media      *Media
+}
+
+type MediaKind uint8
+
+const (
+	MediaGIF MediaKind = iota + 1
+	MediaSticker
+)
+
+type Media struct {
+	Kind  MediaKind
+	Name  string
+	Emoji string
 }
 
 var Channels = []string{"general", "dev-chat", "showcase", "ideas"}

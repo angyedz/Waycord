@@ -86,10 +86,14 @@ func (a *App) transition(gtx layout.Context, state *panelTransition, target floa
 }
 
 func animatedReveal(gtx layout.Context, progress float32, height unit.Dp, child layout.Widget) layout.Dimensions {
+	return animatedRevealSized(gtx, progress, float32(height), child)
+}
+
+func animatedRevealSized(gtx layout.Context, progress, heightDp float32, child layout.Widget) layout.Dimensions {
 	if progress <= 0 {
 		return layout.Dimensions{}
 	}
-	fullHeight := gtx.Dp(height)
+	fullHeight := gtx.Dp(unit.Dp(heightDp))
 	visibleHeight := int(float32(fullHeight) * progress)
 	if visibleHeight < 1 {
 		visibleHeight = 1
