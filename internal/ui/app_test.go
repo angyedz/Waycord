@@ -1,6 +1,14 @@
 package ui
 
-import "testing"
+import (
+	"image"
+	"testing"
+
+	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/unit"
+	"gioui.org/widget"
+)
 
 func TestPreviewMessageRemainsInItsConversation(t *testing.T) {
 	app := New()
@@ -21,5 +29,36 @@ func TestPreviewMessageRemainsInItsConversation(t *testing.T) {
 	message = app.messages[len(app.messages)-1]
 	if message.Direct || message.Channel != 2 {
 		t.Fatalf("channel message lost its context: %+v", message)
+	}
+}
+
+func TestSidebarKeepsWidthWhenToggled(t *testing.T) {
+	sidebar := newSidebarState()
+	sidebar.width = clampSidebarWidth(260)
+	sidebar.toggle()
+	if sidebar.shown {
+		t.Fatal("sidebar did not collapse")
+	}
+	sidebar.toggle()
+	if !sidebar.shown || sidebar.width != 260 {
+		t.Fatalf("sidebar state was not restored: %+v", sidebar)
+	}
+	if clampSidebarWidth(0) != minSidebarWidth || clampSidebarWidth(1000) != maxSidebarWidth {
+		t.Fatal("sidebar width limits not enforced")
+	}
+}
+
+func TestPillDoesNotInheritContainerMinimumSize(t *testing.T) {
+	app := New()
+	var ops op.Ops
+	gtx := layout.Context{
+		Ops:         &ops,
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: layout.Constraints{Min: image.Pt(200, 80), Max: image.Pt(200, 80)},
+	}
+	var button widget.Clickable
+	dims := app.pill(gtx, &button, "Profile", true)
+	if dims.Size.X >= 200 || dims.Size.Y >= 80 {
+		t.Fatalf("button inherited container size: %v", dims.Size)
 	}
 }

@@ -62,12 +62,17 @@ func (a *App) clickLabel(gtx layout.Context, b *widget.Clickable, title string, 
 	if selected {
 		bg = a.palette.AccentDim
 		fg = a.palette.Text
+	} else if b.Hovered() {
+		bg = a.palette.Surface
+		fg = a.palette.Text
 	}
 	return b.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return rounded(gtx, bg, 18, padding(layout.Inset{Left: 14, Right: 14, Top: 9, Bottom: 9}, a.text(title, 14, fg)))
 	})
 }
 func (a *App) pill(gtx layout.Context, b *widget.Clickable, title string, active bool) layout.Dimensions {
+	// Parent minimums must not stretch a content-sized control to the header.
+	gtx.Constraints.Min = image.Point{}
 	bg := a.palette.Surface2
 	fg := a.palette.Muted
 	if active {

@@ -28,8 +28,14 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 			})
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if !a.emojiOpen {
+				return layout.Dimensions{}
+			}
+			return a.emojiPicker(gtx)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: 8, Bottom: 14, Left: 20, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return rounded(gtx, a.palette.Surface, 24, padding(layout.Inset{Left: 20, Right: 8, Top: 7, Bottom: 7}, func(gtx layout.Context) layout.Dimensions {
+				return rounded(gtx, a.palette.Surface, 24, padding(layout.Inset{Left: 18, Right: 6, Top: 5, Bottom: 5}, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Alignment: layout.Middle}.Layout(gtx,
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							input := material.Editor(a.theme, &a.composer, "Write a message…")
@@ -37,9 +43,11 @@ func (a *App) chat(gtx layout.Context) layout.Dimensions {
 							input.Color = a.palette.Text
 							return input.Layout(gtx)
 						}),
-						hspace(12),
+						hspace(8),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return a.emojiControl(gtx) }),
+						hspace(4),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return a.pill(gtx, &a.sendButton, "Send", true)
+							return a.sendControl(gtx)
 						}),
 					)
 				}))
@@ -55,9 +63,11 @@ func (a *App) message(gtx layout.Context, m mock.Message) layout.Dimensions {
 			if m.Self {
 				avatar = a.palette.AccentDim
 			}
-			return fixedWidth(38, func(gtx layout.Context) layout.Dimensions {
-				return rounded(gtx, avatar, 19, inset(9, a.text(firstLetter(m.Author), 15, a.palette.Text)))
-			})(gtx)
+			return fixedWidth(38, fixedHeight(38, func(gtx layout.Context) layout.Dimensions {
+				return rounded(gtx, avatar, 19, func(gtx layout.Context) layout.Dimensions {
+					return layout.Center.Layout(gtx, a.text(firstLetter(m.Author), 15, a.palette.Text))
+				})
+			}))(gtx)
 		}),
 		hspace(14),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {

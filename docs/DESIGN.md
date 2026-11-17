@@ -24,15 +24,16 @@ Single source of truth: `internal/ui/theme/palette.go`.
 
 ## Desktop layout (first iteration)
 
-- **Server rail:** 60dp, full window height, strong contrast with the rest.
-- **Channel rail:** 200dp, grouped text/voice channels; bottom connection-state section.
+- **Navigation:** server rail and channel list form one rounded surface. The channel list can be collapsed or resized; its chosen width is retained while the app runs.
 - **Workspace:** flexible width, 58dp header, virtualized message list and message composer.
 - **Direct messages:** their own navigation entry and contact list; a compact profile for the selected contact appears only in the direct conversation when there is room.
+- **Emoji:** a bundled color font supplies a fallback on both desktop platforms; the composer includes a small local picker.
 - **Updates screen:** separate workspace route with channel picker and explicit explanation of signed OTA steps.
 - **Minimum window:** 800 × 540dp; responsive reflow below this size is future work.
 
 ## Interaction policies
 
+- Buttons size to their label and intentional padding, rather than inheriting a header or panel's minimum dimensions.
 - Everything in the current build is labeled `offline preview` where appropriate. Clicking Send updates local fixture data only.
 - Channel controls switch between local preview conversations.
 - The updates screen reports that checks are unavailable in the preview.
