@@ -300,6 +300,16 @@ func TestUpdateInstallRequiresManagedRestartPath(t *testing.T) {
 	}
 }
 
+func TestStagedUpdateRemainsVisibleAfterChannelChange(t *testing.T) {
+	app := New()
+	app.availableUpdate = &ota.Update{Available: true, Payload: ota.Payload{Version: "v1.0.1"}}
+	app.updateStaged = true
+	app.setUpdatePreferences("beta", false)
+	if app.availableUpdate == nil || !app.updateStaged {
+		t.Fatal("changing update channel hid a staged restart")
+	}
+}
+
 func TestCategoryDisclosureIconsLayoutWithoutFontGlyphs(t *testing.T) {
 	app := New()
 	if app.categoryExpandedIcon == nil || app.categoryCollapsedIcon == nil {

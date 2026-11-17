@@ -67,8 +67,10 @@ func (a *App) setUpdatePreferences(channel string, autoCheck bool) {
 	changed := channel != a.updateChannel
 	a.updateChannel, a.updateAutoCheck = channel, autoCheck
 	if changed {
-		a.availableUpdate = nil
-		a.updateStatus = ""
+		if !a.updateStaged {
+			a.availableUpdate = nil
+			a.updateStatus = ""
+		}
 	}
 }
 
